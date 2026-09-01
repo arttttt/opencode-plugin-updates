@@ -1,63 +1,76 @@
 # opencode-plugin-updates
 
-An [OpenCode](https://opencode.ai) plugin that notifies you about outdated npm-installed plugins.
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![OpenCode Plugin](https://img.shields.io/badge/OpenCode-Plugin-green.svg)](https://opencode.ai)
+[![npm version](https://img.shields.io/npm/v/opencode-plugin-updates.svg)](https://www.npmjs.com/package/opencode-plugin-updates)
+[![GitHub repo](https://img.shields.io/badge/repo-arttttt%2Fopencode--plugin--updates-181717?logo=github)](https://github.com/arttttt/opencode-plugin-updates)
 
-OpenCode resolves a `@latest` plugin spec once and then treats the cached workspace as
-permanently fresh, so newer npm releases never arrive on their own
-([#6774](https://github.com/anomalyco/opencode/issues/6774),
-[#25293](https://github.com/anomalyco/opencode/issues/25293)). This plugin compares the
-cache against the npm registry and reports what is stale.
+An [OpenCode](https://opencode.ai) plugin that **notifies you about outdated plugins** — it compares every npm-installed plugin against the registry and **names the stale ones**, so a silently pinned `@latest` never leaves you weeks behind.
 
-**The plugin is read-only: it never installs, updates, or deletes anything.**
+OpenCode resolves a `@latest` plugin spec once, then treats the cached workspace as permanently fresh — newer npm releases never arrive on their own ([#6774](https://github.com/anomalyco/opencode/issues/6774), [#25293](https://github.com/anomalyco/opencode/issues/25293)). This plugin surfaces exactly that staleness. **Read-only: it never installs, updates, or deletes anything.**
 
-## What it does
+## How it works
 
-- **Startup notification** — shortly after OpenCode starts, shows a toast naming every
-  outdated plugin with its versions. Silent when everything is current.
-- **`/plugins-check`** — prints the full version table for all installed plugins,
-  without spending a model turn.
+```
+OpenCode startup (15s settle delay)
+  ↓
+scan package cache roots:  $XDG_CACHE_HOME/opencode/packages
+                           ~/.cache/opencode/packages
+                           ~/Library/Caches/opencode/packages
+  ├─ every existing root is scanned, results deduplicated (first hit wins)
+  ├─ per <name>@latest workspace: installed = node_modules/<name> version
+  ↓
+npm registry: GET /-/package/<name>/dist-tags   (parallel, 5s timeout, failures skip)
+  ↓
+installed ≠ latest  →  toast: "plugin-updates: 2 outdated: a (1.0.0 -> 1.0.1), ..."
+all fresh           →  silent
+  ↓
+/plugins-check  →  full table in chat, no model turn:
+                   - a: 1.0.0 -> 1.0.1
+                   - b: 2.0.0 =  up to date
+```
 
-Both the XDG-style (`~/.cache/opencode/packages`) and macOS
-(`~/Library/Caches/opencode/packages`) cache roots are supported; every existing root is
-scanned and results are deduplicated.
+## Features
+
+- **Startup notification** — a toast naming every outdated plugin with its versions; silent when everything is current
+- **`/plugins-check` command** — the full version table for all installed plugins, printed without spending a model turn
+- **Multi-root cache support** — both XDG-style (`~/.cache/opencode/packages`) and macOS (`~/Library/Caches/opencode/packages`) roots, scanned and deduplicated
+- **Scoped packages** — `@scope/name@latest` workspaces are discovered alongside plain ones
+- **Fail-soft** — registry timeouts and unreadable workspaces are skipped, never surfaced as errors
 
 ## Install
 
-```
-opencode plugin opencode-plugin-updates -g
-```
-
-or add it to `opencode.json` manually:
-
-```json
+```jsonc
+// ~/.config/opencode/opencode.json  (user)  or  .opencode/opencode.json  (project)
 {
   "plugin": ["opencode-plugin-updates"]
 }
 ```
 
+or
+
+```
+opencode plugin opencode-plugin-updates -g
+```
+
+Restart OpenCode after adding it.
+
 ## Options
 
-```json
+```jsonc
 {
   "plugin": [
     ["opencode-plugin-updates", {
-      "packages": [],
-      "exclude": [],
-      "packagesDir": [],
+      "packages": [],          // whitelist of package names to consider
+      "exclude": [],           // blacklist of package names to skip
+      "packagesDir": [],       // explicit cache root(s) instead of auto-detection
       "commandName": "plugins-check"
     }]
   ]
 }
 ```
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `packages` | all | Whitelist of package names to consider |
-| `exclude` | none | Blacklist of package names to skip |
-| `packagesDir` | auto | Explicit package cache root(s) instead of auto-detection |
-| `commandName` | `plugins-check` | Name of the slash command |
-
-## Development
+## Develop
 
 ```
 bun test
@@ -66,4 +79,4 @@ tsc --noEmit
 
 ## License
 
-Apache-2.0
+Apache-2.0 © Artem Bambalov
