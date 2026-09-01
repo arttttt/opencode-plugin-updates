@@ -102,7 +102,7 @@ describe("updatePlugins", () => {
   test("emits no progress when nothing is stale", async () => {
     const events: unknown[] = [];
     await updatePlugins(
-      { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST), updater: fakeUpdater() },
+      { cache: fakeCache(PLUGINS), registry: fakeRegistry({ stale: "1.0.0", fresh: "2.0.0", offline: null, unreadable: "3.0.0" }), updater: fakeUpdater() },
       {},
       (progress) => events.push(progress),
     );
