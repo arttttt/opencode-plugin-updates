@@ -22,3 +22,16 @@ export interface PluginStatus {
   /** True only when both versions are known and differ. */
   readonly updateAvailable: boolean;
 }
+
+/** An update that was actually applied to a workspace. */
+export interface AppliedUpdate {
+  readonly name: string;
+  readonly from: string;
+  readonly to: string;
+}
+
+/** Everything one manual update run learned and did. */
+export interface UpdateOutcome {
+  readonly statuses: readonly PluginStatus[];
+  readonly applied: readonly AppliedUpdate[];
+}

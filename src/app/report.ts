@@ -4,7 +4,7 @@
  * Pure formatting: no IO, so the exact wording is testable.
  */
 
-import type { PluginStatus } from "../domain/entities";
+import type { PluginStatus, UpdateOutcome } from "../domain/entities";
 
 function versionText(version: string | null): string {
   return version ?? "unknown";
@@ -18,6 +18,14 @@ export function renderCheckReport(statuses: readonly PluginStatus[]): string {
     return `- ${status.name}: ${versionText(status.installed)}${arrow}${target}`;
   });
   return ["Plugins:", ...lines].join("\n");
+}
+
+/** Table plus the applied updates and a restart hint, for /plugins-update. */
+export function renderUpdateReport(outcome: UpdateOutcome): string {
+  const base = renderCheckReport(outcome.statuses);
+  if (outcome.applied.length === 0) return `${base}\n\nNothing to update.`;
+  const applied = outcome.applied.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
+  return [base, "", "Updated:", ...applied, "", "Restart OpenCode to load the updated plugins."].join("\n");
 }
 
 /** Short toast that names every outdated plugin, or null when all is fresh. */

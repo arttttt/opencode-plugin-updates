@@ -7,7 +7,7 @@
 
 An [OpenCode](https://opencode.ai) plugin that **notifies you about outdated plugins** — it compares every npm-installed plugin against the registry and **names the stale ones**, so a silently pinned `@latest` never leaves you weeks behind.
 
-OpenCode resolves a `@latest` plugin spec once, then treats the cached workspace as permanently fresh — newer npm releases never arrive on their own (known upstream issues #6774, #25293, #30631). This plugin surfaces exactly that staleness. **Read-only: it never installs, updates, or deletes anything.**
+OpenCode resolves a `@latest` plugin spec once, then treats the cached workspace as permanently fresh — newer npm releases never arrive on their own (known upstream issues #6774, #25293, #30631). This plugin surfaces exactly that staleness. **Automation is read-only: the startup check only notifies. Updates happen exclusively through the manual `/plugins-update` command.**
 
 ## How it works
 
@@ -34,6 +34,7 @@ all fresh           →  silent
 
 - **Startup notification** — a toast naming every outdated plugin with its versions; silent when everything is current
 - **`/plugins-check` command** — the full version table for all installed plugins, printed without spending a model turn
+- **`/plugins-update` command** — manually applies pending updates: repins each stale workspace, removes its lock files, reinstalls (`bun`, falling back to `npm`), then asks you to restart OpenCode
 - **Multi-root cache support** — both XDG-style (`~/.cache/opencode/packages`) and macOS (`~/Library/Caches/opencode/packages`) roots, scanned and deduplicated
 - **Scoped packages** — `@scope/name@latest` workspaces are discovered alongside plain ones
 - **Fail-soft** — registry timeouts and unreadable workspaces are skipped, never surfaced as errors
@@ -61,10 +62,11 @@ Restart OpenCode after adding it.
 {
   "plugin": [
     ["opencode-plugin-updates", {
-      "packages": [],          // whitelist of package names to consider
-      "exclude": [],           // blacklist of package names to skip
-      "packagesDir": [],       // explicit cache root(s) instead of auto-detection
-      "commandName": "plugins-check"
+      "packages": [],              // whitelist of package names to consider
+      "exclude": [],               // blacklist of package names to skip
+      "packagesDir": [],           // explicit cache root(s) instead of auto-detection
+      "checkCommandName": "plugins-check",
+      "updateCommandName": "plugins-update"
     }]
   ]
 }

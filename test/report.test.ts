@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import type { PluginStatus } from "../src/domain/entities";
-import { renderCheckReport, renderStaleToast } from "../src/app/report";
+import type { InstalledPlugin, PluginStatus, UpdateOutcome } from "../src/domain/entities";
+import { renderCheckReport, renderStaleToast, renderUpdateReport } from "../src/app/report";
 
 const STATUSES: PluginStatus[] = [
   { name: "fresh", installed: "1.0.0", latest: "1.0.0", updateAvailable: false },
@@ -17,6 +17,26 @@ describe("renderCheckReport", () => {
     expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
     expect(report).toContain("- unknown-registry: 1.0.0 =  up to date");
     expect(report).toContain("- broken-install: unknown =  up to date");
+  });
+});
+
+describe("renderUpdateReport", () => {
+  test("appends applied updates and the restart hint", () => {
+    const outcome: UpdateOutcome = {
+      statuses: STATUSES,
+      applied: [{ name: "stale", from: "1.0.0", to: "1.1.0" }],
+    };
+    const report = renderUpdateReport(outcome);
+    expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
+    expect(report).toContain("Updated:");
+    expect(report).toContain("Restart OpenCode");
+  });
+
+  test("reports nothing-to-update without applied section", () => {
+    const outcome: UpdateOutcome = { statuses: STATUSES, applied: [] };
+    const report = renderUpdateReport(outcome);
+    expect(report).toContain("Nothing to update.");
+    expect(report).not.toContain("Restart OpenCode");
   });
 });
 

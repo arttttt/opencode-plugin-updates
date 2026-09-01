@@ -16,3 +16,8 @@ export interface PackagesCache {
 export interface NpmRegistry {
   latest(name: string): Promise<string | null>;
 }
+
+/** Applies a new version to an installed plugin workspace. */
+export interface WorkspaceUpdater {
+  apply(plugin: InstalledPlugin, version: string): Promise<boolean>;
+}

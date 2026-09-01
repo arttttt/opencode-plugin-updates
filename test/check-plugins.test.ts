@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import type { InstalledPlugin, PluginStatus } from "../src/domain/entities";
-import type { NpmRegistry, PackagesCache } from "../src/app/ports";
-import { checkPlugins, toStatus } from "../src/app/check-plugins";
+import type { InstalledPlugin } from "../src/domain/entities";
+import type { NpmRegistry, PackagesCache, WorkspaceUpdater } from "../src/app/ports";
+import { checkPlugins, toStatus, updatePlugins } from "../src/app/check-plugins";
 
 function fakeCache(plugins: InstalledPlugin[]): PackagesCache {
   return { list: async () => plugins };
@@ -19,12 +19,25 @@ function fakeRegistry(latest: Record<string, string | null>): NpmRegistry & { re
   };
 }
 
+function fakeUpdater(): WorkspaceUpdater & { appliedTo: { name: string; version: string }[] } {
+  const appliedTo: { name: string; version: string }[] = [];
+  return {
+    appliedTo,
+    apply: async (plugin, version) => {
+      appliedTo.push({ name: plugin.name, version });
+      return true;
+    },
+  };
+}
+
 const PLUGINS: InstalledPlugin[] = [
   { name: "stale", workspaceDir: "/w/stale", installed: "1.0.0" },
   { name: "fresh", workspaceDir: "/w/fresh", installed: "2.0.0" },
   { name: "offline", workspaceDir: "/w/offline", installed: "1.0.0" },
   { name: "unreadable", workspaceDir: "/w/unreadable", installed: null },
 ];
+
+const LATEST = { stale: "1.1.0", fresh: "2.0.0", offline: null, unreadable: "3.0.0" };
 
 describe("toStatus", () => {
   test("update is available only when both versions are known and differ", () => {
@@ -36,29 +49,44 @@ describe("toStatus", () => {
 });
 
 describe("checkPlugins", () => {
-  test("reports a status for every considered plugin", async () => {
-    const statuses = await checkPlugins(
-      {
-        cache: fakeCache(PLUGINS),
-        registry: fakeRegistry({ stale: "1.1.0", fresh: "2.0.0", offline: null, unreadable: "3.0.0" }),
-      },
-      {},
-    );
+  test("reports a status for every considered plugin without touching workspaces", async () => {
+    const statuses = await checkPlugins({ cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST) }, {});
 
     expect(statuses).toHaveLength(4);
-    expect(statuses.find((s) => s.name === "stale")?.updateAvailable).toBe(true);
     expect(statuses.filter((s) => s.updateAvailable)).toHaveLength(1);
   });
 
   test("filters are applied before any registry traffic", async () => {
-    const registry = fakeRegistry({ stale: "1.1.0" });
+    const registry = fakeRegistry(LATEST);
 
-    const statuses = await checkPlugins(
-      { cache: fakeCache(PLUGINS), registry },
-      { exclude: ["stale"] },
-    );
+    const statuses = await checkPlugins({ cache: fakeCache(PLUGINS), registry }, { exclude: ["stale"] });
 
     expect(registry.requested).not.toContain("stale");
     expect(statuses.map((s) => s.name)).not.toContain("stale");
+  });
+});
+
+describe("updatePlugins", () => {
+  test("applies updates only to stale plugins", async () => {
+    const updater = fakeUpdater();
+
+    const outcome = await updatePlugins(
+      { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST), updater },
+      {},
+    );
+
+    expect(updater.appliedTo).toEqual([{ name: "stale", version: "1.1.0" }]);
+    expect(outcome.applied).toEqual([{ name: "stale", from: "1.0.0", to: "1.1.0" }]);
+    expect(outcome.statuses).toHaveLength(4);
+  });
+
+  test("a failed install is not reported as applied", async () => {
+    const outcome = await updatePlugins(
+      { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST), updater: { apply: async () => false } },
+      {},
+    );
+
+    expect(outcome.applied).toEqual([]);
+    expect(outcome.statuses.find((s) => s.name === "stale")?.updateAvailable).toBe(true);
   });
 });
