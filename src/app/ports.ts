@@ -5,7 +5,7 @@
  * wires them. Dependencies point inward (Clean Architecture).
  */
 
-import type { AppliedUpdate, InstalledPlugin } from "../domain/entities";
+import type { InstalledPlugin } from "../domain/entities";
 
 /** Reads plugin workspaces from one or more package cache directories. */
 export interface PackagesCache {
@@ -15,14 +15,4 @@ export interface PackagesCache {
 /** Resolves the current "latest" dist-tag of a package from npm. */
 export interface NpmRegistry {
   latest(name: string): Promise<string | null>;
-}
-
-/** Applies a new version to an installed plugin workspace. */
-export interface WorkspaceUpdater {
-  apply(plugin: InstalledPlugin, version: string): Promise<boolean>;
-}
-
-/** Records applied updates for the human to review later. */
-export interface Changelog {
-  append(entries: readonly AppliedUpdate[]): Promise<void>;
 }
