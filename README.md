@@ -7,7 +7,7 @@
 
 An [OpenCode](https://opencode.ai) plugin that **notifies you about outdated plugins** — it compares every npm-installed plugin against the registry and **names the stale ones**, so a silently pinned `@latest` never leaves you weeks behind.
 
-OpenCode resolves a `@latest` plugin spec once, then treats the cached workspace as permanently fresh — newer npm releases never arrive on their own ([#6774](https://github.com/anomalyco/opencode/issues/6774), [#25293](https://github.com/anomalyco/opencode/issues/25293)). This plugin surfaces exactly that staleness. **Read-only: it never installs, updates, or deletes anything.**
+OpenCode resolves a `@latest` plugin spec once, then treats the cached workspace as permanently fresh — newer npm releases never arrive on their own (known upstream issues #6774, #25293, #30631). This plugin surfaces exactly that staleness. **Read-only: it never installs, updates, or deletes anything.**
 
 ## How it works
 
