@@ -1,6 +1,6 @@
 {
   "name": "opencode-plugin-updates",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "OpenCode plugin that checks installed plugins against npm and updates stale @latest caches",
   "author": "arttttt <artembambalov1993@gmail.com>",

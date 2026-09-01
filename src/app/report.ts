@@ -13,6 +13,12 @@ function versionText(version: string | null): string {
 /** Full table for the /plugins-check command: every plugin and its state. */
 export function renderCheckReport(statuses: readonly PluginStatus[]): string {
   const lines = statuses.map((status) => {
+    if (status.latest === null) {
+      return `- ${status.name}: ${versionText(status.installed)} =  unknown (no registry data)`;
+    }
+    if (status.installed === null) {
+      return `- ${status.name}: unknown =  unknown (local version unreadable)`;
+    }
     const arrow = status.updateAvailable ? " -> " : " =  ";
     const target = status.updateAvailable ? versionText(status.latest) : "up to date";
     return `- ${status.name}: ${versionText(status.installed)}${arrow}${target}`;

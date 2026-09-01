@@ -124,13 +124,17 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
     /** Handles both commands; aborts the command flow so no model turn runs. */
     "command.execute.before": async (cmd, output) => {
       if (cmd.command === settings.checkCommandName) {
+        await notifier.toast("plugin-updates: checking plugins…");
         const statuses = await checkPlugins(deps, settings.filter);
         await notifier.say(cmd.sessionID, renderCheckReport(statuses));
         suppressLlmDispatch(output);
         throw new CommandHandled();
       }
       if (cmd.command === settings.updateCommandName) {
-        const outcome = await updatePlugins(deps, settings.filter);
+        await notifier.toast("plugin-updates: checking plugins…");
+        const outcome = await updatePlugins(deps, settings.filter, (progress) => {
+          void notifier.toast(`plugin-updates: updating ${progress.name} (${progress.index}/${progress.total})…`);
+        });
         await notifier.say(cmd.sessionID, renderUpdateReport(outcome));
         suppressLlmDispatch(output);
         throw new CommandHandled();

@@ -39,14 +39,26 @@ export async function checkPlugins(deps: CheckDependencies, filter: PluginFilter
   return (await collect(deps, filter)).statuses;
 }
 
+/** Progress event emitted before each workspace install. */
+export interface UpdateProgress {
+  readonly name: string;
+  readonly index: number;
+  readonly total: number;
+}
+
 /** Manual: applies pending updates, sequentially — installs never race. */
-export async function updatePlugins(deps: UpdateDependencies, filter: PluginFilter): Promise<UpdateOutcome> {
+export async function updatePlugins(
+  deps: UpdateDependencies,
+  filter: PluginFilter,
+  onProgress?: (progress: UpdateProgress) => void,
+): Promise<UpdateOutcome> {
   const { installed, statuses } = await collect(deps, filter);
+  const stale = statuses.filter((status) => status.updateAvailable);
   const applied: AppliedUpdate[] = [];
-  for (const status of statuses) {
-    if (!status.updateAvailable) continue;
+  for (const [index, status] of stale.entries()) {
     const plugin = installed.find((candidate) => candidate.name === status.name);
     if (plugin === undefined) continue;
+    onProgress?.({ name: status.name, index: index + 1, total: stale.length });
     if (await deps.updater.apply(plugin, status.latest!)) {
       applied.push({ name: status.name, from: status.installed!, to: status.latest! });
     }

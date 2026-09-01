@@ -15,8 +15,8 @@ describe("renderCheckReport", () => {
     const report = renderCheckReport(STATUSES);
     expect(report).toContain("- fresh: 1.0.0 =  up to date");
     expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
-    expect(report).toContain("- unknown-registry: 1.0.0 =  up to date");
-    expect(report).toContain("- broken-install: unknown =  up to date");
+    expect(report).toContain("- unknown-registry: 1.0.0 =  unknown (no registry data)");
+    expect(report).toContain("- broken-install: unknown =  unknown (local version unreadable)");
   });
 });
 

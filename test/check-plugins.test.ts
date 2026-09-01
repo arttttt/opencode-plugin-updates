@@ -80,6 +80,35 @@ describe("updatePlugins", () => {
     expect(outcome.statuses).toHaveLength(4);
   });
 
+  test("emits progress before each install, 1-based", async () => {
+    const plugins: InstalledPlugin[] = [
+      { name: "a", workspaceDir: "/w/a", installed: "1.0.0" },
+      { name: "b", workspaceDir: "/w/b", installed: "1.0.0" },
+    ];
+    const events: { name: string; index: number; total: number }[] = [];
+
+    await updatePlugins(
+      { cache: fakeCache(plugins), registry: fakeRegistry({ a: "1.1.0", b: "1.1.0" }), updater: fakeUpdater() },
+      {},
+      (progress) => events.push({ ...progress }),
+    );
+
+    expect(events).toEqual([
+      { name: "a", index: 1, total: 2 },
+      { name: "b", index: 2, total: 2 },
+    ]);
+  });
+
+  test("emits no progress when nothing is stale", async () => {
+    const events: unknown[] = [];
+    await updatePlugins(
+      { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST), updater: fakeUpdater() },
+      {},
+      (progress) => events.push(progress),
+    );
+    expect(events).toEqual([]);
+  });
+
   test("a failed install is not reported as applied", async () => {
     const outcome = await updatePlugins(
       { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST), updater: { apply: async () => false } },
