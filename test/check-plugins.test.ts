@@ -40,11 +40,13 @@ const PLUGINS: InstalledPlugin[] = [
 const LATEST = { stale: "1.1.0", fresh: "2.0.0", offline: null, unreadable: "3.0.0" };
 
 describe("toStatus", () => {
-  test("update is available only when both versions are known and differ", () => {
+  test("update is available when latest is known and newer, or the installed version unreadable", () => {
     expect(toStatus(PLUGINS[0], "1.1.0").updateAvailable).toBe(true);
     expect(toStatus(PLUGINS[1], "2.0.0").updateAvailable).toBe(false);
     expect(toStatus(PLUGINS[2], null).updateAvailable).toBe(false);
-    expect(toStatus(PLUGINS[3], "9.9.9").updateAvailable).toBe(false);
+    // Unreadable means no loadable plugin: reinstalling latest is offered.
+    expect(toStatus(PLUGINS[3], "9.9.9").updateAvailable).toBe(true);
+    expect(toStatus(PLUGINS[3], null).updateAvailable).toBe(false);
   });
 
   // A latest dist-tag moved back to an older release must not downgrade.
@@ -70,7 +72,7 @@ describe("checkPlugins", () => {
     const { statuses } = await checkPlugins({ cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST) }, {});
 
     expect(statuses).toHaveLength(4);
-    expect(statuses.filter((s) => s.updateAvailable)).toHaveLength(1);
+    expect(statuses.filter((s) => s.updateAvailable).map((s) => s.name)).toEqual(["stale", "unreadable"]);
   });
 
   test("filters are applied before any registry traffic", async () => {
@@ -93,7 +95,7 @@ describe("checkPlugins", () => {
 });
 
 describe("updatePlugins", () => {
-  test("applies updates only to stale plugins", async () => {
+  test("applies updates to stale plugins and reinstalls unreadable ones, nothing else", async () => {
     const updater = fakeUpdater();
 
     const outcome = await updatePlugins(
@@ -101,8 +103,14 @@ describe("updatePlugins", () => {
       {},
     );
 
-    expect(updater.appliedTo).toEqual([{ name: "stale", version: "1.1.0" }]);
-    expect(outcome.applied).toEqual([{ name: "stale", from: "1.0.0", to: "1.1.0" }]);
+    expect(updater.appliedTo).toEqual([
+      { name: "stale", version: "1.1.0" },
+      { name: "unreadable", version: "3.0.0" },
+    ]);
+    expect(outcome.applied).toEqual([
+      { name: "stale", from: "1.0.0", to: "1.1.0" },
+      { name: "unreadable", from: null, to: "3.0.0" },
+    ]);
     expect(outcome.failed).toEqual([]);
     expect(outcome.statuses).toHaveLength(4);
     expect(outcome.discovered).toBe(4);
@@ -130,7 +138,7 @@ describe("updatePlugins", () => {
   test("emits no progress when nothing is stale", async () => {
     const events: unknown[] = [];
     await updatePlugins(
-      { cache: fakeCache(PLUGINS), registry: fakeRegistry({ stale: "1.0.0", fresh: "2.0.0", offline: null, unreadable: "3.0.0" }), updater: fakeUpdater() },
+      { cache: fakeCache(PLUGINS), registry: fakeRegistry({ stale: "1.0.0", fresh: "2.0.0", offline: null, unreadable: null }), updater: fakeUpdater() },
       {},
       (progress) => events.push(progress),
     );
@@ -144,7 +152,10 @@ describe("updatePlugins", () => {
     );
 
     expect(outcome.applied).toEqual([]);
-    expect(outcome.failed).toEqual([{ name: "stale", from: "1.0.0", to: "1.1.0" }]);
+    expect(outcome.failed).toEqual([
+      { name: "stale", from: "1.0.0", to: "1.1.0" },
+      { name: "unreadable", from: null, to: "3.0.0" },
+    ]);
     expect(outcome.statuses.find((s) => s.name === "stale")?.updateAvailable).toBe(true);
   });
 });

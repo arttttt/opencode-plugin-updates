@@ -31,20 +31,21 @@ nothing newer                →  silent
                    - b: 2.0.0 =  up to date
                    - c: 1.2.0 =  newer than npm latest (1.1.0)
                    - d: 1.0.0 =  unknown (no registry data)          registry failed or timed out
-                   - e: unknown =  unknown (local version unreadable)
+                   - e: unknown -> 1.0.0  (local version unreadable: updating reinstalls it)
                 no plugins found  →  the directories searched, and a pointer to `packagesDir`
                 all filtered out  →  how many were found, and that `packages` / `exclude` removed them
 ```
 
 ## Features
 
-- **Startup notification** — a toast naming every outdated plugin with its versions; silent when everything is current
+- **Startup notification** — a toast naming the outdated plugins with their versions (the first three, then how many more); silent when everything is current
 - **`/plugins-check` command** — the full version table for all installed plugins, printed without spending a model turn
 - **`/plugins-update` command** — manually applies pending updates: repins each stale workspace, removes its lock files, reinstalls (`bun`, falling back to `npm`), lists what was updated and what failed, and asks you to restart OpenCode when something was updated. An update counts only once the new version is in the workspace's `node_modules`; otherwise the workspace keeps its old pin. One run at a time: a `/plugins-update` made while another runs in the same OpenCode process is turned away
+- **Repairs broken installs** — a plugin whose installed version can't be read (no `node_modules/<name>/package.json`) is offered for update too, and updating reinstalls npm's `latest`
 - **Never downgrades** — an update is offered only when npm's `latest` is a newer version than the installed one, so a `latest` tag moved back to an older release is reported, not installed
 - **Multi-root cache support** — both XDG-style (`~/.cache/opencode/packages`) and macOS (`~/Library/Caches/opencode/packages`) roots, scanned and deduplicated
 - **Scoped packages** — `@scope/name@latest` workspaces are discovered alongside plain ones
-- **Fail-soft** — a registry that fails or times out, or a version that can't be read, shows as `unknown` in the table and is never surfaced as an error; workspaces without a readable `package.json` are skipped
+- **Fail-soft** — a registry that fails or times out shows as `unknown` in the table and is never surfaced as an error; workspaces without a readable `package.json` are skipped
 
 ## Install
 

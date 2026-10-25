@@ -19,14 +19,18 @@ export interface PluginStatus {
   readonly name: string;
   readonly installed: string | null;
   readonly latest: string | null;
-  /** True only when both versions are known and `latest` is newer. */
+  /**
+   * True when `latest` is known and either newer than `installed` or
+   * `installed` is unreadable (a reinstall).
+   */
   readonly updateAvailable: boolean;
 }
 
 /** One plugin's move from one version to another, whether it was applied or failed. */
 export interface VersionChange {
   readonly name: string;
-  readonly from: string;
+  /** null: the installed version was unreadable, so this is a reinstall. */
+  readonly from: string | null;
   readonly to: string;
 }
 
