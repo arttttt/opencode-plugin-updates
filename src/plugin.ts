@@ -18,7 +18,8 @@ import type { Plugin } from "@opencode-ai/plugin";
 
 import type { PluginFilter } from "./app/policy";
 import { checkPlugins, updatePlugins, type CheckDependencies, type UpdateDependencies } from "./app/check-plugins";
-import { renderCheckReport, renderStaleToast, renderUpdateReport } from "./app/report";
+import { renderCheckReport, renderStaleToast, renderUpdateReport, UPDATE_ALREADY_RUNNING } from "./app/report";
+import { createSingleFlight } from "./app/single-flight";
 import { createNpmRegistry } from "./infra/npm-registry";
 import { createNotifier, type UiClient } from "./infra/opencode-ui";
 import { createPackagesCache, resolveCacheCandidates } from "./infra/packages-cache";
@@ -26,6 +27,13 @@ import { createWorkspaceUpdater } from "./infra/workspace-updater";
 
 /** The plugin's id for loaders that read one: its npm package name. */
 export const PLUGIN_ID = "opencode-plugin-updates";
+
+/**
+ * One /plugins-update at a time across every session and project this
+ * OpenCode process loads the plugin for: module state, so all of them share
+ * it. Separate OpenCode processes are not coordinated.
+ */
+const updateRuns = createSingleFlight();
 
 /** Delay before the first automatic check, letting OpenCode settle first. */
 const STARTUP_DELAY_MS = 15_000;
@@ -63,13 +71,19 @@ function readCommandName(raw: Record<string, unknown>, key: string, fallback: st
   return typeof value === "string" && value !== "" ? value : fallback;
 }
 
+/**
+ * The cache roots to scan: `packagesDir` as a string or a list, or the
+ * auto-detected roots when it names none — so `[]`, as in the README's
+ * options example, means "detect", not "scan nothing".
+ */
+export function resolvePackagesDirs(packagesDir: unknown, env: NodeJS.ProcessEnv): string[] {
+  const listed = Array.isArray(packagesDir) ? packagesDir : [packagesDir];
+  const dirs = listed.filter((entry): entry is string => typeof entry === "string" && entry !== "");
+  return dirs.length > 0 ? dirs : resolveCacheCandidates(env);
+}
+
 function parseSettings(raw: Record<string, unknown>): Settings {
-  const packagesDir = raw.packagesDir;
-  const dirs = Array.isArray(packagesDir)
-    ? packagesDir.filter((entry): entry is string => typeof entry === "string")
-    : typeof packagesDir === "string"
-      ? [packagesDir]
-      : resolveCacheCandidates(process.env);
+  const dirs = resolvePackagesDirs(raw.packagesDir, process.env);
   return {
     checkCommandName: readCommandName(raw, "checkCommandName", "plugins-check"),
     updateCommandName: readCommandName(raw, "updateCommandName", "plugins-update"),
@@ -130,11 +144,14 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
         throw new CommandHandled();
       }
       if (cmd.command === settings.updateCommandName) {
-        await notifier.toast("plugin-updates: checking plugins…");
-        const outcome = await updatePlugins(deps, settings.filter, (progress) => {
-          void notifier.toast(`plugin-updates: updating ${progress.name} (${progress.index}/${progress.total})…`);
+        const outcome = await updateRuns(async () => {
+          await notifier.toast("plugin-updates: checking plugins…");
+          return updatePlugins(deps, settings.filter, (progress) => {
+            void notifier.toast(`plugin-updates: updating ${progress.name} (${progress.index}/${progress.total})…`);
+          });
         });
-        await notifier.say(cmd.sessionID, renderUpdateReport(outcome, settings.packagesDirs));
+        const report = outcome === null ? UPDATE_ALREADY_RUNNING : renderUpdateReport(outcome, settings.packagesDirs);
+        await notifier.say(cmd.sessionID, report);
         throw new CommandHandled();
       }
     },

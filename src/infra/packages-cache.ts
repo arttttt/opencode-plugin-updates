@@ -59,9 +59,14 @@ async function existingDir(dir: string): Promise<string | null> {
   }
 }
 
+/** Subdirectories of `dir`; none when it can't be read (EACCES), so one bad root can't fail the scan. */
 async function subDirs(dir: string): Promise<string[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  return entries.filter((entry) => entry.isDirectory()).map((entry) => path.join(dir, entry.name));
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    return entries.filter((entry) => entry.isDirectory()).map((entry) => path.join(dir, entry.name));
+  } catch {
+    return [];
+  }
 }
 
 /** `@scope` roots contribute their `name@latest` children; plain roots contribute themselves. */

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -57,6 +57,21 @@ describe("createPackagesCache", () => {
     await mkdir(path.join(root, "empty@latest"), { recursive: true });
 
     expect(await createPackagesCache([root]).list()).toEqual([]);
+  });
+
+  // A root that exists but can't be listed used to reject list(), and with it
+  // /plugins-check, with a raw error instead of a report.
+  test("skips a root it may not read and still scans the others", async () => {
+    const locked = await makeTempRoot();
+    const open = await makeTempRoot();
+    await makeWorkspace(open, "readable", "1.0.0");
+    await chmod(locked, 0o000);
+    try {
+      const plugins = await createPackagesCache([locked, open]).list();
+      expect(plugins.map((plugin) => plugin.name)).toEqual(["readable"]);
+    } finally {
+      await chmod(locked, 0o755);
+    }
   });
 
   test("skips missing roots and keeps the first hit per name across roots", async () => {

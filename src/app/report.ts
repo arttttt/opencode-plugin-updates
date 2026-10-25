@@ -4,7 +4,8 @@
  * Pure formatting: no IO, so the exact wording is testable.
  */
 
-import type { CheckOutcome, PluginStatus, UpdateOutcome } from "../domain/entities";
+import type { CheckOutcome, PluginStatus, UpdateOutcome, VersionChange } from "../domain/entities";
+import { isSameVersion } from "../domain/versions";
 
 function versionText(version: string | null): string {
   return version ?? "unknown";
@@ -39,20 +40,37 @@ export function renderCheckReport(outcome: CheckOutcome, searched: readonly stri
     if (status.installed === null) {
       return `- ${status.name}: unknown =  unknown (local version unreadable)`;
     }
-    const arrow = status.updateAvailable ? " -> " : " =  ";
-    const target = status.updateAvailable ? versionText(status.latest) : "up to date";
-    return `- ${status.name}: ${versionText(status.installed)}${arrow}${target}`;
+    if (status.updateAvailable) return `- ${status.name}: ${status.installed} -> ${status.latest}`;
+    // Known, a different version, yet no update: the registry's latest is older.
+    if (!isSameVersion(status.installed, status.latest)) {
+      return `- ${status.name}: ${status.installed} =  newer than npm latest (${status.latest})`;
+    }
+    return `- ${status.name}: ${status.installed} =  up to date`;
   });
   return ["Plugins:", ...lines].join("\n");
 }
 
-/** Table plus the applied updates and a restart hint, for /plugins-update. */
+function updateLines(updates: readonly VersionChange[]): string[] {
+  return updates.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
+}
+
+/** Table plus what was updated, what failed, and a restart hint, for /plugins-update. */
 export function renderUpdateReport(outcome: UpdateOutcome, searched: readonly string[]): string {
   const base = renderCheckReport(outcome, searched);
-  if (outcome.applied.length === 0) return `${base}\n\nNothing to update.`;
-  const applied = outcome.applied.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
-  return [base, "", "Updated:", ...applied, "", "Restart OpenCode to load the updated plugins."].join("\n");
+  const { applied, failed } = outcome;
+  if (applied.length === 0 && failed.length === 0) return `${base}\n\nNothing to update.`;
+  const sections = [base];
+  if (applied.length > 0) sections.push(["Updated:", ...updateLines(applied)].join("\n"));
+  if (failed.length > 0) {
+    sections.push(["Failed to update:", ...updateLines(failed)].join("\n"));
+  }
+  if (applied.length > 0) sections.push("Restart OpenCode to load the updated plugins.");
+  return sections.join("\n\n");
 }
+
+/** Said to a /plugins-update made while another one is still running. */
+export const UPDATE_ALREADY_RUNNING =
+  "An update is already running; its report will follow. Run /plugins-update again after it if needed.";
 
 /** Short toast that names every outdated plugin, or null when all is fresh. */
 export function renderStaleToast(statuses: readonly PluginStatus[]): string | null {

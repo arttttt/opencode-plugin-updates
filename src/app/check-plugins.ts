@@ -5,7 +5,8 @@
  * through a port.
  */
 
-import type { AppliedUpdate, CheckOutcome, InstalledPlugin, PluginStatus, UpdateOutcome } from "../domain/entities";
+import type { CheckOutcome, InstalledPlugin, PluginStatus, UpdateOutcome, VersionChange } from "../domain/entities";
+import { isNewer } from "../domain/versions";
 import type { NpmRegistry, PackagesCache, WorkspaceUpdater } from "./ports";
 import type { PluginFilter } from "./policy";
 import { shouldConsider } from "./policy";
@@ -19,9 +20,13 @@ export interface UpdateDependencies extends CheckDependencies {
   readonly updater: WorkspaceUpdater;
 }
 
-/** Pure core of the comparison step, extracted for direct testing. */
+/**
+ * Pure core of the comparison step, extracted for direct testing. An update
+ * needs `latest` to be newer, not merely different: a `latest` dist-tag moved
+ * back to an older release must not downgrade the plugin.
+ */
 export function toStatus(plugin: InstalledPlugin, latest: string | null): PluginStatus {
-  const updateAvailable = plugin.installed !== null && latest !== null && plugin.installed !== latest;
+  const updateAvailable = plugin.installed !== null && latest !== null && isNewer(latest, plugin.installed);
   return { name: plugin.name, installed: plugin.installed, latest, updateAvailable };
 }
 
@@ -56,14 +61,14 @@ export async function updatePlugins(
 ): Promise<UpdateOutcome> {
   const { installed, statuses, discovered } = await collect(deps, filter);
   const stale = statuses.filter((status) => status.updateAvailable);
-  const applied: AppliedUpdate[] = [];
+  const applied: VersionChange[] = [];
+  const failed: VersionChange[] = [];
   for (const [index, status] of stale.entries()) {
     const plugin = installed.find((candidate) => candidate.name === status.name);
     if (plugin === undefined) continue;
     onProgress?.({ name: status.name, index: index + 1, total: stale.length });
-    if (await deps.updater.apply(plugin, status.latest!)) {
-      applied.push({ name: status.name, from: status.installed!, to: status.latest! });
-    }
+    const update = { name: status.name, from: status.installed!, to: status.latest! };
+    (await deps.updater.apply(plugin, update.to) ? applied : failed).push(update);
   }
-  return { statuses, applied, discovered };
+  return { statuses, applied, failed, discovered };
 }
