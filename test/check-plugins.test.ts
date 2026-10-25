@@ -46,6 +46,23 @@ describe("toStatus", () => {
     expect(toStatus(PLUGINS[2], null).updateAvailable).toBe(false);
     expect(toStatus(PLUGINS[3], "9.9.9").updateAvailable).toBe(false);
   });
+
+  // A latest dist-tag moved back to an older release must not downgrade.
+  test.each([
+    ["1.2.0", "1.1.0", false],
+    ["1.1.0-beta.1", "1.1.0", true],
+    ["1.1.0", "1.1.0-beta.1", false],
+    ["1.9.0", "1.10.0", true],
+  ])("installed %s, latest %s: update available is %p", (installed, latest, available) => {
+    const plugin: InstalledPlugin = { name: "p", workspaceDir: "/w/p", installed };
+    expect(toStatus(plugin, latest).updateAvailable).toBe(available);
+  });
+
+  test("falls back to inequality when a version is not semver", () => {
+    const plugin: InstalledPlugin = { name: "p", workspaceDir: "/w/p", installed: "not-a-version" };
+    expect(toStatus(plugin, "1.0.0").updateAvailable).toBe(true);
+    expect(toStatus({ ...plugin, installed: "1.0.0" }, "1.0.0").updateAvailable).toBe(false);
+  });
 });
 
 describe("checkPlugins", () => {
@@ -86,6 +103,7 @@ describe("updatePlugins", () => {
 
     expect(updater.appliedTo).toEqual([{ name: "stale", version: "1.1.0" }]);
     expect(outcome.applied).toEqual([{ name: "stale", from: "1.0.0", to: "1.1.0" }]);
+    expect(outcome.failed).toEqual([]);
     expect(outcome.statuses).toHaveLength(4);
     expect(outcome.discovered).toBe(4);
   });
@@ -119,13 +137,14 @@ describe("updatePlugins", () => {
     expect(events).toEqual([]);
   });
 
-  test("a failed install is not reported as applied", async () => {
+  test("a failed install is reported as failed, not applied", async () => {
     const outcome = await updatePlugins(
       { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST), updater: { apply: async () => false } },
       {},
     );
 
     expect(outcome.applied).toEqual([]);
+    expect(outcome.failed).toEqual([{ name: "stale", from: "1.0.0", to: "1.1.0" }]);
     expect(outcome.statuses.find((s) => s.name === "stale")?.updateAvailable).toBe(true);
   });
 });

@@ -19,11 +19,11 @@ export interface PluginStatus {
   readonly name: string;
   readonly installed: string | null;
   readonly latest: string | null;
-  /** True only when both versions are known and differ. */
+  /** True only when both versions are known and `latest` is newer. */
   readonly updateAvailable: boolean;
 }
 
-/** An update that was actually applied to a workspace. */
+/** An update to one workspace: applied, or attempted and failed. */
 export interface AppliedUpdate {
   readonly name: string;
   readonly from: string;
@@ -44,4 +44,6 @@ export interface CheckOutcome {
 /** Everything one manual update run learned and did. */
 export interface UpdateOutcome extends CheckOutcome {
   readonly applied: readonly AppliedUpdate[];
+  /** Updates that were attempted but whose pin or install failed. */
+  readonly failed: readonly AppliedUpdate[];
 }

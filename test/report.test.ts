@@ -24,6 +24,13 @@ describe("renderCheckReport", () => {
     expect(report).not.toContain("No npm-installed plugins");
   });
 
+  // Not "up to date": the versions differ, the registry's is just older.
+  test("says so when the installed version is newer than npm's latest", () => {
+    const ahead: PluginStatus = { name: "ahead", installed: "1.2.0", latest: "1.1.0", updateAvailable: false };
+    const report = renderCheckReport({ statuses: [ahead], discovered: 1 }, SEARCHED);
+    expect(report).toContain("- ahead: 1.2.0 =  newer than npm latest (1.1.0)");
+  });
+
   // An empty list read as "all up to date" when the cache was simply not
   // where it was looked for: say where, and how to point elsewhere.
   test("says where it looked when the cache held no plugins", () => {
@@ -45,26 +52,45 @@ describe("renderCheckReport", () => {
 });
 
 describe("renderUpdateReport", () => {
+  const STALE = { name: "stale", from: "1.0.0", to: "1.1.0" };
+
   test("appends applied updates and the restart hint", () => {
-    const outcome: UpdateOutcome = {
-      ...CHECKED,
-      applied: [{ name: "stale", from: "1.0.0", to: "1.1.0" }],
-    };
+    const outcome: UpdateOutcome = { ...CHECKED, applied: [STALE], failed: [] };
     const report = renderUpdateReport(outcome, SEARCHED);
     expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
     expect(report).toContain("Updated:");
     expect(report).toContain("Restart OpenCode");
+    expect(report).not.toContain("Failed to update:");
   });
 
   test("reports nothing-to-update without applied section", () => {
-    const outcome: UpdateOutcome = { ...CHECKED, applied: [] };
+    const outcome: UpdateOutcome = { ...CHECKED, applied: [], failed: [] };
     const report = renderUpdateReport(outcome, SEARCHED);
     expect(report).toContain("Nothing to update.");
     expect(report).not.toContain("Restart OpenCode");
   });
 
+  // Stale plugins whose every install failed read as "Nothing to update."
+  // under the table that listed them as outdated.
+  test("names failed installs instead of claiming nothing to update, and asks no restart", () => {
+    const outcome: UpdateOutcome = { ...CHECKED, applied: [], failed: [STALE] };
+    const report = renderUpdateReport(outcome, SEARCHED);
+    expect(report).toEndWith("Failed to update:\n- stale: 1.0.0 -> 1.1.0");
+    expect(report).not.toContain("Nothing to update.");
+    expect(report).not.toContain("Restart OpenCode");
+  });
+
+  test("reports applied and failed updates side by side", () => {
+    const other = { name: "other", from: "2.0.0", to: "2.1.0" };
+    const outcome: UpdateOutcome = { ...CHECKED, applied: [STALE], failed: [other] };
+    const report = renderUpdateReport(outcome, SEARCHED);
+    expect(report).toContain("Updated:\n- stale: 1.0.0 -> 1.1.0");
+    expect(report).toContain("Failed to update:\n- other: 2.0.0 -> 2.1.0");
+    expect(report).toEndWith("Restart OpenCode to load the updated plugins.");
+  });
+
   test("says where it looked when it found no plugins", () => {
-    const report = renderUpdateReport({ statuses: [], applied: [], discovered: 0 }, SEARCHED);
+    const report = renderUpdateReport({ statuses: [], applied: [], failed: [], discovered: 0 }, SEARCHED);
     expect(report).toContain("No npm-installed plugins found.");
     expect(report).toContain(SEARCHED[0]);
   });
