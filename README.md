@@ -40,7 +40,7 @@ nothing newer                →  silent
 
 - **Startup notification** — a toast naming every outdated plugin with its versions; silent when everything is current
 - **`/plugins-check` command** — the full version table for all installed plugins, printed without spending a model turn
-- **`/plugins-update` command** — manually applies pending updates: repins each stale workspace, removes its lock files, reinstalls (`bun`, falling back to `npm`), lists what was updated and what failed, and asks you to restart OpenCode when something was updated
+- **`/plugins-update` command** — manually applies pending updates: repins each stale workspace, removes its lock files, reinstalls (`bun`, falling back to `npm`), lists what was updated and what failed, and asks you to restart OpenCode when something was updated. An update counts only once the new version is in the workspace's `node_modules`; otherwise the workspace keeps its old pin. One run at a time: a `/plugins-update` made while another runs in the same OpenCode process is turned away
 - **Never downgrades** — an update is offered only when npm's `latest` is a newer version than the installed one, so a `latest` tag moved back to an older release is reported, not installed
 - **Multi-root cache support** — both XDG-style (`~/.cache/opencode/packages`) and macOS (`~/Library/Caches/opencode/packages`) roots, scanned and deduplicated
 - **Scoped packages** — `@scope/name@latest` workspaces are discovered alongside plain ones
@@ -75,6 +75,8 @@ Restart OpenCode after adding it.
 Below OpenCode 1.15.11 the plugin gets no `dispose` hook, so the startup check's timer is not cleared when OpenCode unloads it. That is harmless: the timer fires once.
 
 OpenCode 2 installs plugins as immutable cache generations and checks them for updates itself, so this plugin — written for OpenCode 1's cache, which never refreshes an installed `@latest` plugin — deliberately offers it no entry. OpenCode 2 support is planned separately.
+
+Versions are looked up on the public registry, `registry.npmjs.org`, whatever your npm configuration says. A plugin that comes from a mirror or a private registry shows as `unknown`, or with that public registry's version.
 
 The cache layout the scanner expects is pinned by a test against OpenCode 1.18.32's installer (`packages/core/src/npm.ts`).
 
