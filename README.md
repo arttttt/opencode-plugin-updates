@@ -28,6 +28,8 @@ all fresh           →  silent
 /plugins-check  →  full table in chat, no model turn:
                    - a: 1.0.0 -> 1.0.1
                    - b: 2.0.0 =  up to date
+                no plugins found  →  the directories searched, and a pointer to `packagesDir`
+                all filtered out  →  how many were found, and that `packages` / `exclude` removed them
 ```
 
 ## Features
@@ -55,6 +57,19 @@ opencode plugin opencode-plugin-updates -g
 ```
 
 Restart OpenCode after adding it.
+
+## Compatibility
+
+| OpenCode | Loads through | Status |
+|---|---|---|
+| 1.0 – 1.1 | the package root | loads, but `/plugins-check` and `/plugins-update` reach the model as plain prompts: the hook that handles them arrived in 1.2.0 |
+| 1.2 – 1.3.3 | the package root (`main`) | supported |
+| 1.3.4 – 1.x | `exports["./server"]` | supported; `engines.opencode` (`^1.2.0`) is checked on install |
+| 2.x | — | not supported yet: OpenCode 2 rejects the plugin |
+
+OpenCode 2 installs plugins as immutable cache generations and checks them for updates itself, so this plugin — written for OpenCode 1's cache, which never refreshes an installed `@latest` plugin — deliberately offers it no entry. OpenCode 2 support is planned separately.
+
+The cache layout the scanner expects is pinned by a test against OpenCode 1.18.32's installer (`packages/core/src/npm.ts`).
 
 ## Options
 

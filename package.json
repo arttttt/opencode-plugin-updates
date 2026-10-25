@@ -16,7 +16,11 @@
     "npm",
     "cache"
   ],
-  "main": "src/plugin.ts",
+  "main": "src/entry/legacy.ts",
+  "exports": {
+    ".": "./src/entry/legacy.ts",
+    "./server": "./src/entry/server.ts"
+  },
   "files": [
     "src",
     "README.md",
@@ -37,6 +41,7 @@
     "typescript": "~5.9.3"
   },
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.0.0",
+    "opencode": "^1.2.0"
   }
 }

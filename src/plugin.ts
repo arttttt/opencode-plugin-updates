@@ -7,6 +7,9 @@
  * on their own. The startup check only notifies; updates happen
  * exclusively through the manual /plugins-update command.
  *
+ * This module is the composition root, not an entry: OpenCode loads the
+ * plugin through src/entry/legacy.ts or src/entry/server.ts.
+ *
  * @author arttttt
  * @license Apache-2.0
  */
@@ -21,28 +24,25 @@ import { createNotifier, type UiClient } from "./infra/opencode-ui";
 import { createPackagesCache, resolveCacheCandidates } from "./infra/packages-cache";
 import { createWorkspaceUpdater } from "./infra/workspace-updater";
 
+/** The plugin's id for loaders that read one: its npm package name. */
+export const PLUGIN_ID = "opencode-plugin-updates";
+
 /** Delay before the first automatic check, letting OpenCode settle first. */
 const STARTUP_DELAY_MS = 15_000;
 
 /**
  * Sentinel thrown after a command was fully handled by the plugin.
  *
- * OpenCode 1.18.x has no supported way for `command.execute.before` to
- * skip the LLM dispatch after a command, so a handled command aborts the
- * command flow the only reliable way: by throwing (the same pattern other
+ * No OpenCode 1 release, up to the last one (1.19.x), lets
+ * `command.execute.before` skip the LLM dispatch: its output carries
+ * `parts` and nothing else. So a handled command aborts the command flow
+ * the only reliable way, by throwing (the same pattern other
  * command-handling plugins use). The report is printed BEFORE throwing.
  */
 class CommandHandled extends Error {
   constructor() {
     super("opencode-plugin-updates: command handled by the plugin, skipping LLM dispatch");
   }
-}
-
-/** Marks the hook output for runtimes that support cancellation flags. */
-function suppressLlmDispatch(output: unknown): void {
-  const flags = output as { cancelled?: boolean; noReply?: boolean };
-  flags.cancelled = true;
-  flags.noReply = true;
 }
 
 interface Settings {
@@ -100,7 +100,7 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
   // update; a failure here must never surface as a plugin load error.
   const startupTimer = setTimeout(() => {
     checkPlugins(deps, settings.filter)
-      .then((statuses) => {
+      .then(({ statuses }) => {
         const toast = renderStaleToast(statuses);
         if (toast !== null) return notifier.toast(toast);
       })
@@ -122,12 +122,11 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
     },
 
     /** Handles both commands; aborts the command flow so no model turn runs. */
-    "command.execute.before": async (cmd, output) => {
+    "command.execute.before": async (cmd) => {
       if (cmd.command === settings.checkCommandName) {
         await notifier.toast("plugin-updates: checking plugins…");
-        const statuses = await checkPlugins(deps, settings.filter);
-        await notifier.say(cmd.sessionID, renderCheckReport(statuses));
-        suppressLlmDispatch(output);
+        const outcome = await checkPlugins(deps, settings.filter);
+        await notifier.say(cmd.sessionID, renderCheckReport(outcome, settings.packagesDirs));
         throw new CommandHandled();
       }
       if (cmd.command === settings.updateCommandName) {
@@ -135,8 +134,7 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
         const outcome = await updatePlugins(deps, settings.filter, (progress) => {
           void notifier.toast(`plugin-updates: updating ${progress.name} (${progress.index}/${progress.total})…`);
         });
-        await notifier.say(cmd.sessionID, renderUpdateReport(outcome));
-        suppressLlmDispatch(output);
+        await notifier.say(cmd.sessionID, renderUpdateReport(outcome, settings.packagesDirs));
         throw new CommandHandled();
       }
     },
@@ -146,5 +144,3 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
     },
   };
 };
-
-export default PluginUpdatesPlugin;
