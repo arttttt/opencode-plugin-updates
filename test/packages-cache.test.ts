@@ -68,3 +68,48 @@ describe("createPackagesCache", () => {
     ]);
   });
 });
+
+/**
+ * The cache exactly as OpenCode writes it, so a move on OpenCode's side shows
+ * up here rather than as a silent "nothing found". Taken from OpenCode
+ * v1.18.32, packages/core/src/npm.ts: Npm.add installs a plugin spec — a bare
+ * name already normalised to `<name>@latest` by plugin/shared.ts — into
+ * `path.join(global.cache, "packages", sanitize(spec))` with Arborist
+ * (save: true, savePrefix: ""), so a scoped spec nests under its scope.
+ * Npm.which installs tools such as language servers into the same root under
+ * their bare name.
+ */
+describe("OpenCode 1.18.32's package cache", () => {
+  async function arboristWorkspace(packages: string, spec: string, name: string, version: string): Promise<void> {
+    const dir = path.join(packages, spec);
+    await mkdir(path.join(dir, "node_modules", ".bin"), { recursive: true });
+    await mkdir(path.join(dir, "node_modules", name), { recursive: true });
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ dependencies: { [name]: version } }));
+    await writeFile(path.join(dir, "package-lock.json"), JSON.stringify({ lockfileVersion: 3, packages: {} }));
+    await writeFile(path.join(dir, "node_modules", name, "package.json"), JSON.stringify({ name, version }));
+  }
+
+  test("finds the plugins OpenCode installed and ignores the tools it installed beside them", async () => {
+    // global.cache is <xdg cache>/opencode; plugins live in its packages/.
+    const packages = path.join(await makeTempRoot(), "opencode", "packages");
+    await arboristWorkspace(packages, "opencode-pr-signature@latest", "opencode-pr-signature", "1.2.1");
+    await arboristWorkspace(packages, "@acme/opencode-plugin@latest", "@acme/opencode-plugin", "0.3.0");
+    await arboristWorkspace(packages, "pyright", "pyright", "1.1.400");
+
+    // Directory order is the filesystem's, so compare by name.
+    const plugins = (await createPackagesCache([packages]).list()).sort((a, b) => a.name.localeCompare(b.name));
+
+    expect(plugins).toEqual([
+      {
+        name: "@acme/opencode-plugin",
+        workspaceDir: path.join(packages, "@acme", "opencode-plugin@latest"),
+        installed: "0.3.0",
+      },
+      {
+        name: "opencode-pr-signature",
+        workspaceDir: path.join(packages, "opencode-pr-signature@latest"),
+        installed: "1.2.1",
+      },
+    ]);
+  });
+});
