@@ -7,7 +7,9 @@
  * v1.19.4). Loading it the same way reads the same sources — npm_config_*
  * env, ~/.npmrc (or $NPM_CONFIG_USERCONFIG), the global npmrc — so a version
  * is looked up where OpenCode would install it from. Not the user's project
- * .npmrc: OpenCode never reads that for plugins.
+ * .npmrc: OpenCode never reads that for plugins. OpenCode 1.19.4 pins
+ * @npmcli/config 10.8.1, this package ^10.14.0: the registry and auth keys
+ * read here are the same in both.
  */
 
 import path from "node:path";
@@ -81,7 +83,8 @@ function credentialKeys(registry: string): string[] {
  * The Authorization header npm would send to `registry`: the first key, most
  * specific first, with an `_authToken` (Bearer) or `_auth` (Basic). npmrc
  * `${VAR}` references are already expanded by the loader. None when there
- * are no credentials.
+ * are no credentials. These are the user's secrets: they go to that registry
+ * only, and neither they nor the loaded config are ever logged or reported.
  */
 export function authHeadersFor(registry: string, config: NpmConfig): Record<string, string> {
   for (const key of credentialKeys(registry)) {

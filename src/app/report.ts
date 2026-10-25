@@ -82,9 +82,15 @@ export const TOAST_NAMES = 3;
 export function renderStaleToast(statuses: readonly PluginStatus[]): string | null {
   const stale = statuses.filter((status) => status.updateAvailable);
   if (stale.length === 0) return null;
+  // A broken install reads differently from a stale one: it may keep
+  // failing to reinstall, and should not pass for ordinary staleness.
   const named = stale
     .slice(0, TOAST_NAMES)
-    .map((status) => `${status.name} (${versionText(status.installed)} -> ${versionText(status.latest)})`);
+    .map((status) =>
+      status.installed === null
+        ? `${status.name} (broken install, reinstall ${versionText(status.latest)})`
+        : `${status.name} (${status.installed} -> ${versionText(status.latest)})`,
+    );
   const rest = stale.length - named.length;
   const list = rest > 0 ? `${named.join(", ")} and ${rest} more` : named.join(", ");
   return `plugin-updates: ${stale.length} outdated: ${list}`;

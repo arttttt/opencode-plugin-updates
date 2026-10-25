@@ -133,9 +133,9 @@ describe("renderStaleToast", () => {
     expect(renderStaleToast(stale.slice(0, TOAST_NAMES))).not.toContain("more");
   });
 
-  test("names a plugin to reinstall with its unknown version", () => {
+  test("calls a plugin to reinstall a broken install, not an ordinary update", () => {
     const broken: PluginStatus[] = [{ name: "x", installed: null, latest: "2.0.0", updateAvailable: true }];
-    expect(renderStaleToast(broken)).toBe("plugin-updates: 1 outdated: x (unknown -> 2.0.0)");
+    expect(renderStaleToast(broken)).toBe("plugin-updates: 1 outdated: x (broken install, reinstall 2.0.0)");
   });
 
   test("stays silent when everything is current", () => {
