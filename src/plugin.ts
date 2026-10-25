@@ -126,7 +126,7 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
       if (cmd.command === settings.checkCommandName) {
         await notifier.toast("plugin-updates: checking plugins…");
         const statuses = await checkPlugins(deps, settings.filter);
-        await notifier.say(cmd.sessionID, renderCheckReport(statuses));
+        await notifier.say(cmd.sessionID, renderCheckReport(statuses, settings.packagesDirs));
         throw new CommandHandled();
       }
       if (cmd.command === settings.updateCommandName) {
@@ -134,7 +134,7 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
         const outcome = await updatePlugins(deps, settings.filter, (progress) => {
           void notifier.toast(`plugin-updates: updating ${progress.name} (${progress.index}/${progress.total})…`);
         });
-        await notifier.say(cmd.sessionID, renderUpdateReport(outcome));
+        await notifier.say(cmd.sessionID, renderUpdateReport(outcome, settings.packagesDirs));
         throw new CommandHandled();
       }
     },

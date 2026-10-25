@@ -10,13 +10,25 @@ const STATUSES: PluginStatus[] = [
   { name: "broken-install", installed: null, latest: "2.0.0", updateAvailable: false },
 ];
 
+const SEARCHED = ["/cache/opencode/packages", "/home/me/.cache/opencode/packages"];
+
 describe("renderCheckReport", () => {
   test("lists every plugin with its resolution state", () => {
-    const report = renderCheckReport(STATUSES);
+    const report = renderCheckReport(STATUSES, SEARCHED);
     expect(report).toContain("- fresh: 1.0.0 =  up to date");
     expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
     expect(report).toContain("- unknown-registry: 1.0.0 =  unknown (no registry data)");
     expect(report).toContain("- broken-install: unknown =  unknown (local version unreadable)");
+    expect(report).not.toContain("No npm-installed plugins");
+  });
+
+  // An empty list read as "all up to date" when the cache was simply not
+  // where it was looked for: say where, and how to point elsewhere.
+  test("says where it looked when it found no plugins", () => {
+    const report = renderCheckReport([], SEARCHED);
+    expect(report).toContain("No npm-installed plugins found.");
+    for (const dir of SEARCHED) expect(report).toContain(dir);
+    expect(report).toContain("packagesDir");
   });
 });
 
@@ -26,7 +38,7 @@ describe("renderUpdateReport", () => {
       statuses: STATUSES,
       applied: [{ name: "stale", from: "1.0.0", to: "1.1.0" }],
     };
-    const report = renderUpdateReport(outcome);
+    const report = renderUpdateReport(outcome, SEARCHED);
     expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
     expect(report).toContain("Updated:");
     expect(report).toContain("Restart OpenCode");
@@ -34,9 +46,15 @@ describe("renderUpdateReport", () => {
 
   test("reports nothing-to-update without applied section", () => {
     const outcome: UpdateOutcome = { statuses: STATUSES, applied: [] };
-    const report = renderUpdateReport(outcome);
+    const report = renderUpdateReport(outcome, SEARCHED);
     expect(report).toContain("Nothing to update.");
     expect(report).not.toContain("Restart OpenCode");
+  });
+
+  test("says where it looked when it found no plugins", () => {
+    const report = renderUpdateReport({ statuses: [], applied: [] }, SEARCHED);
+    expect(report).toContain("No npm-installed plugins found.");
+    expect(report).toContain(SEARCHED[0]);
   });
 });
 

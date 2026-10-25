@@ -10,8 +10,22 @@ function versionText(version: string | null): string {
   return version ?? "unknown";
 }
 
+/**
+ * Said instead of an empty table. Finding nothing usually means the cache is
+ * not where it was looked for, not that every plugin is fresh.
+ */
+function renderNothingFound(searched: readonly string[]): string {
+  return [
+    "No npm-installed plugins found. Searched:",
+    ...searched.map((dir) => `- ${dir}`),
+    "",
+    "Set the `packagesDir` option if OpenCode keeps its plugin cache elsewhere.",
+  ].join("\n");
+}
+
 /** Full table for the /plugins-check command: every plugin and its state. */
-export function renderCheckReport(statuses: readonly PluginStatus[]): string {
+export function renderCheckReport(statuses: readonly PluginStatus[], searched: readonly string[]): string {
+  if (statuses.length === 0) return renderNothingFound(searched);
   const lines = statuses.map((status) => {
     if (status.latest === null) {
       return `- ${status.name}: ${versionText(status.installed)} =  unknown (no registry data)`;
@@ -27,8 +41,8 @@ export function renderCheckReport(statuses: readonly PluginStatus[]): string {
 }
 
 /** Table plus the applied updates and a restart hint, for /plugins-update. */
-export function renderUpdateReport(outcome: UpdateOutcome): string {
-  const base = renderCheckReport(outcome.statuses);
+export function renderUpdateReport(outcome: UpdateOutcome, searched: readonly string[]): string {
+  const base = renderCheckReport(outcome.statuses, searched);
   if (outcome.applied.length === 0) return `${base}\n\nNothing to update.`;
   const applied = outcome.applied.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
   return [base, "", "Updated:", ...applied, "", "Restart OpenCode to load the updated plugins."].join("\n");

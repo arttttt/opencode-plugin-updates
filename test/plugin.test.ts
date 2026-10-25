@@ -18,6 +18,8 @@ afterEach(async () => {
   await Promise.all(loaded.splice(0).map((hooks) => hooks.dispose?.()));
 });
 
+const packagesDir = path.join(tmpdir(), "opencode-plugin-updates-no-cache");
+
 /** Load the plugin with a recording client; return its hooks and what it printed. */
 async function load(options: Record<string, unknown> = {}) {
   const prompts: unknown[] = [];
@@ -25,7 +27,6 @@ async function load(options: Record<string, unknown> = {}) {
     tui: { showToast: async () => {} },
     session: { prompt: async (request: unknown) => void prompts.push(request) },
   };
-  const packagesDir = path.join(tmpdir(), "opencode-plugin-updates-no-cache");
   const hooks = (await PluginUpdatesPlugin({ client } as never, { packagesDir, ...options })) as unknown as Hooks;
   loaded.push(hooks);
   return { hooks, prompts };
@@ -64,9 +65,9 @@ describe("command.execute.before", () => {
         "command handled by the plugin",
       );
 
-      expect(prompts).toEqual([
-        { path: { id: "s1" }, body: { noReply: true, parts: [{ type: "text", text: expect.stringContaining("Plugins:") }] } },
-      ]);
+      // The cache root does not exist, so the report says where it looked.
+      const text = expect.stringContaining(`No npm-installed plugins found. Searched:\n- ${packagesDir}`);
+      expect(prompts).toEqual([{ path: { id: "s1" }, body: { noReply: true, parts: [{ type: "text", text }] } }]);
       // The throw is what stops the LLM dispatch; OpenCode 1's output for this
       // hook is {parts} only, so nothing else is written to it.
       expect(output).toEqual({ parts: [] });
