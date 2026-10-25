@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import type { InstalledPlugin } from "../src/domain/entities";
 import { createPackagesCache, resolveCacheCandidates } from "../src/infra/packages-cache";
 
 async function makeWorkspace(root: string, name: string, version: string): Promise<string> {
@@ -18,6 +19,11 @@ async function makeWorkspace(root: string, name: string, version: string): Promi
 
 async function makeTempRoot(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), "opu-cache-"));
+}
+
+/** Directory order is the filesystem's (hash order on ext4), so compare by name. */
+function byName(plugins: InstalledPlugin[]): InstalledPlugin[] {
+  return [...plugins].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 describe("resolveCacheCandidates", () => {
@@ -37,11 +43,11 @@ describe("createPackagesCache", () => {
     await makeWorkspace(root, "plain-plugin", "1.0.0");
     await makeWorkspace(path.join(root, "@bybrawe"), "bybrawe", "2.0.0");
 
-    const plugins = await createPackagesCache([root]).list();
+    const plugins = byName(await createPackagesCache([root]).list());
 
     expect(plugins).toEqual([
-      { name: "plain-plugin", workspaceDir: path.join(root, "plain-plugin@latest"), installed: "1.0.0" },
       { name: "bybrawe", workspaceDir: path.join(root, "@bybrawe", "bybrawe@latest"), installed: "2.0.0" },
+      { name: "plain-plugin", workspaceDir: path.join(root, "plain-plugin@latest"), installed: "1.0.0" },
     ]);
   });
 
@@ -60,7 +66,9 @@ describe("createPackagesCache", () => {
     await makeWorkspace(second, "dup", "9.0.0");
     await makeWorkspace(second, "only-here", "0.1.0");
 
-    const plugins = await createPackagesCache([path.join(first, "missing"), first, second]).list();
+    // Which copy of "dup" wins depends on root order, which is ours; the
+    // order of names inside a root is the filesystem's.
+    const plugins = byName(await createPackagesCache([path.join(first, "missing"), first, second]).list());
 
     expect(plugins.map((p) => [p.name, p.installed])).toEqual([
       ["dup", "1.0.0"],
@@ -96,8 +104,7 @@ describe("OpenCode 1.18.32's package cache", () => {
     await arboristWorkspace(packages, "@acme/opencode-plugin@latest", "@acme/opencode-plugin", "0.3.0");
     await arboristWorkspace(packages, "pyright", "pyright", "1.1.400");
 
-    // Directory order is the filesystem's, so compare by name.
-    const plugins = (await createPackagesCache([packages]).list()).sort((a, b) => a.name.localeCompare(b.name));
+    const plugins = byName(await createPackagesCache([packages]).list());
 
     expect(plugins).toEqual([
       {
