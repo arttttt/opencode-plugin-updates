@@ -26,4 +26,12 @@ describe("createNpmRegistry", () => {
     const malformed = async () => new Response("not json", { status: 200 });
     expect(await createNpmRegistry(malformed).latest("any")).toBeNull();
   });
+
+  test("gives up on a registry that does not answer within the timeout", async () => {
+    // Answers only by rejecting once aborted, as fetch does.
+    const silent = (_: string, init?: { signal?: AbortSignal }) =>
+      new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))));
+
+    expect(await createNpmRegistry(silent, 10).latest("any")).toBeNull();
+  });
 });
