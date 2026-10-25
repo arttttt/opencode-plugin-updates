@@ -67,6 +67,10 @@ export function renderUpdateReport(outcome: UpdateOutcome, searched: readonly st
   return sections.join("\n\n");
 }
 
+/** Said to a /plugins-update made while another one is still running. */
+export const UPDATE_ALREADY_RUNNING =
+  "An update is already running; its report will follow. Run /plugins-update again after it if needed.";
+
 /** Short toast that names every outdated plugin, or null when all is fresh. */
 export function renderStaleToast(statuses: readonly PluginStatus[]): string | null {
   const stale = statuses.filter((status) => status.updateAvailable);

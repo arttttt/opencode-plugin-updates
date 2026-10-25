@@ -8,6 +8,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { UPDATE_ALREADY_RUNNING } from "../src/app/report";
 import { resolveCacheCandidates } from "../src/infra/packages-cache";
 import { PluginUpdatesPlugin, resolvePackagesDirs } from "../src/plugin";
 
@@ -74,6 +75,32 @@ describe("command.execute.before", () => {
       expect(output).toEqual({ parts: [] });
     },
   );
+
+  // Two loads stand for two projects in one OpenCode process: the lock is
+  // shared, so their updates cannot reinstall the same workspaces at once.
+  test("turns away a /plugins-update made while another is running", async () => {
+    const first = await load();
+    const second = await load();
+    const command = { command: "plugins-update", arguments: "" };
+
+    const errors = await Promise.all(
+      [first, second].map(({ hooks }, index) =>
+        hooks["command.execute.before"]({ ...command, sessionID: `s${index + 1}` }, { parts: [] }).then(
+          () => null,
+          (error: Error) => error.message,
+        ),
+      ),
+    );
+
+    expect(errors).toEqual([expect.stringContaining("command handled by the plugin"), expect.stringContaining("command handled by the plugin")]);
+
+    expect(second.prompts).toEqual([
+      { path: { id: "s2" }, body: { noReply: true, parts: [{ type: "text", text: UPDATE_ALREADY_RUNNING }] } },
+    ]);
+    expect(first.prompts).toEqual([
+      { path: { id: "s1" }, body: { noReply: true, parts: [{ type: "text", text: expect.stringContaining("No npm-installed plugins found.") }] } },
+    ]);
+  });
 
   test("passes any other command through untouched", async () => {
     const { hooks, prompts } = await load();
