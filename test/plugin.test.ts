@@ -8,7 +8,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { PluginUpdatesPlugin } from "../src/plugin";
+import { resolveCacheCandidates } from "../src/infra/packages-cache";
+import { PluginUpdatesPlugin, resolvePackagesDirs } from "../src/plugin";
 
 type Hooks = Record<string, (...args: any[]) => Promise<unknown>>;
 
@@ -82,5 +83,21 @@ describe("command.execute.before", () => {
 
     expect(prompts).toEqual([]);
     expect(output).toEqual({ parts: [] });
+  });
+});
+
+describe("resolvePackagesDirs", () => {
+  const env = { XDG_CACHE_HOME: "/xdg" };
+  const detected = resolveCacheCandidates(env);
+
+  test("uses the directories it names, as a string or a list", () => {
+    expect(resolvePackagesDirs("/a", env)).toEqual(["/a"]);
+    expect(resolvePackagesDirs(["/a", 7, "/b"], env)).toEqual(["/a", "/b"]);
+  });
+
+  // `"packagesDir": []` is what the README's options example shows: it
+  // searched no directory at all, so nothing was ever found.
+  test.each([[undefined], [[]], [""], [[""]], [[7]]])("detects the cache roots when given %p", (packagesDir) => {
+    expect(resolvePackagesDirs(packagesDir, env)).toEqual(detected);
   });
 });

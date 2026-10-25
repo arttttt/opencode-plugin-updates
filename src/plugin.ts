@@ -63,13 +63,19 @@ function readCommandName(raw: Record<string, unknown>, key: string, fallback: st
   return typeof value === "string" && value !== "" ? value : fallback;
 }
 
+/**
+ * The cache roots to scan: `packagesDir` as a string or a list, or the
+ * auto-detected roots when it names none — so `[]`, as in the README's
+ * options example, means "detect", not "scan nothing".
+ */
+export function resolvePackagesDirs(packagesDir: unknown, env: NodeJS.ProcessEnv): string[] {
+  const listed = Array.isArray(packagesDir) ? packagesDir : [packagesDir];
+  const dirs = listed.filter((entry): entry is string => typeof entry === "string" && entry !== "");
+  return dirs.length > 0 ? dirs : resolveCacheCandidates(env);
+}
+
 function parseSettings(raw: Record<string, unknown>): Settings {
-  const packagesDir = raw.packagesDir;
-  const dirs = Array.isArray(packagesDir)
-    ? packagesDir.filter((entry): entry is string => typeof entry === "string")
-    : typeof packagesDir === "string"
-      ? [packagesDir]
-      : resolveCacheCandidates(process.env);
+  const dirs = resolvePackagesDirs(raw.packagesDir, process.env);
   return {
     checkCommandName: readCommandName(raw, "checkCommandName", "plugins-check"),
     updateCommandName: readCommandName(raw, "updateCommandName", "plugins-update"),
