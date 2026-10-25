@@ -38,7 +38,7 @@ export function renderCheckReport(outcome: CheckOutcome, searched: readonly stri
       return `- ${status.name}: ${versionText(status.installed)} =  unknown (no registry data)`;
     }
     if (status.installed === null) {
-      return `- ${status.name}: unknown =  unknown (local version unreadable)`;
+      return `- ${status.name}: unknown -> ${status.latest}  (local version unreadable: updating reinstalls it)`;
     }
     if (status.updateAvailable) return `- ${status.name}: ${status.installed} -> ${status.latest}`;
     // Known, a different version, yet no update: the registry's latest is older.
@@ -51,7 +51,7 @@ export function renderCheckReport(outcome: CheckOutcome, searched: readonly stri
 }
 
 function updateLines(updates: readonly VersionChange[]): string[] {
-  return updates.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
+  return updates.map(({ name, from, to }) => `- ${name}: ${versionText(from)} -> ${to}`);
 }
 
 /** Table plus what was updated, what failed, and a restart hint, for /plugins-update. */
@@ -72,10 +72,26 @@ export function renderUpdateReport(outcome: UpdateOutcome, searched: readonly st
 export const UPDATE_ALREADY_RUNNING =
   "An update is already running; its report will follow. Run /plugins-update again after it if needed.";
 
-/** Short toast that names every outdated plugin, or null when all is fresh. */
+/** How many outdated plugins the startup toast names before summing up the rest. */
+export const TOAST_NAMES = 3;
+
+/**
+ * Short toast that names the first outdated plugins, or null when all is
+ * fresh. Capped: a toast is a glance, /plugins-check has the full table.
+ */
 export function renderStaleToast(statuses: readonly PluginStatus[]): string | null {
   const stale = statuses.filter((status) => status.updateAvailable);
   if (stale.length === 0) return null;
-  const list = stale.map((status) => `${status.name} (${versionText(status.installed)} -> ${versionText(status.latest)})`).join(", ");
+  // A broken install reads differently from a stale one: it may keep
+  // failing to reinstall, and should not pass for ordinary staleness.
+  const named = stale
+    .slice(0, TOAST_NAMES)
+    .map((status) =>
+      status.installed === null
+        ? `${status.name} (broken install, reinstall ${versionText(status.latest)})`
+        : `${status.name} (${status.installed} -> ${versionText(status.latest)})`,
+    );
+  const rest = stale.length - named.length;
+  const list = rest > 0 ? `${named.join(", ")} and ${rest} more` : named.join(", ");
   return `plugin-updates: ${stale.length} outdated: ${list}`;
 }

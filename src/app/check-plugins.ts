@@ -23,10 +23,12 @@ export interface UpdateDependencies extends CheckDependencies {
 /**
  * Pure core of the comparison step, extracted for direct testing. An update
  * needs `latest` to be newer, not merely different: a `latest` dist-tag moved
- * back to an older release must not downgrade the plugin.
+ * back to an older release must not downgrade the plugin. A workspace whose
+ * installed version can't be read holds no loadable plugin, so reinstalling
+ * `latest` is offered too.
  */
 export function toStatus(plugin: InstalledPlugin, latest: string | null): PluginStatus {
-  const updateAvailable = plugin.installed !== null && latest !== null && isNewer(latest, plugin.installed);
+  const updateAvailable = latest !== null && (plugin.installed === null || isNewer(latest, plugin.installed));
   return { name: plugin.name, installed: plugin.installed, latest, updateAvailable };
 }
 
@@ -35,7 +37,7 @@ async function collect(deps: CheckDependencies, filter: PluginFilter) {
   const discovered = await deps.cache.list();
   const installed = discovered.filter((plugin) => shouldConsider(plugin.name, filter));
   const statuses = await Promise.all(
-    installed.map(async (plugin) => toStatus(plugin, await deps.registry.latest(plugin.name))),
+    installed.map(async (plugin) => toStatus(plugin, await deps.registry.latest(plugin))),
   );
   return { installed, statuses, discovered: discovered.length };
 }
@@ -67,7 +69,7 @@ export async function updatePlugins(
     const plugin = installed.find((candidate) => candidate.name === status.name);
     if (plugin === undefined) continue;
     onProgress?.({ name: status.name, index: index + 1, total: stale.length });
-    const update = { name: status.name, from: status.installed!, to: status.latest! };
+    const update = { name: status.name, from: status.installed, to: status.latest! };
     (await deps.updater.apply(plugin, update.to) ? applied : failed).push(update);
   }
   return { statuses, applied, failed, discovered };

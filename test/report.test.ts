@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import type { InstalledPlugin, PluginStatus, UpdateOutcome } from "../src/domain/entities";
-import { renderCheckReport, renderStaleToast, renderUpdateReport } from "../src/app/report";
+import { renderCheckReport, renderStaleToast, renderUpdateReport, TOAST_NAMES } from "../src/app/report";
 
 const STATUSES: PluginStatus[] = [
   { name: "fresh", installed: "1.0.0", latest: "1.0.0", updateAvailable: false },
   { name: "stale", installed: "1.0.0", latest: "1.1.0", updateAvailable: true },
   { name: "unknown-registry", installed: "1.0.0", latest: null, updateAvailable: false },
-  { name: "broken-install", installed: null, latest: "2.0.0", updateAvailable: false },
+  { name: "broken-install", installed: null, latest: "2.0.0", updateAvailable: true },
 ];
 
 const SEARCHED = ["/cache/opencode/packages", "/home/me/.cache/opencode/packages"];
@@ -20,7 +20,7 @@ describe("renderCheckReport", () => {
     expect(report).toContain("- fresh: 1.0.0 =  up to date");
     expect(report).toContain("- stale: 1.0.0 -> 1.1.0");
     expect(report).toContain("- unknown-registry: 1.0.0 =  unknown (no registry data)");
-    expect(report).toContain("- broken-install: unknown =  unknown (local version unreadable)");
+    expect(report).toContain("- broken-install: unknown -> 2.0.0  (local version unreadable: updating reinstalls it)");
     expect(report).not.toContain("No npm-installed plugins");
   });
 
@@ -95,6 +95,12 @@ describe("renderUpdateReport", () => {
     expect(report).toEndWith("Restart OpenCode to load the updated plugins.");
   });
 
+  test("reports a reinstall from an unreadable version as from unknown", () => {
+    const reinstall = { name: "broken-install", from: null, to: "2.0.0" };
+    const report = renderUpdateReport({ ...CHECKED, applied: [reinstall], failed: [] }, SEARCHED);
+    expect(report).toContain("Updated:\n- broken-install: unknown -> 2.0.0");
+  });
+
   test("says where it looked when it found no plugins", () => {
     const report = renderUpdateReport({ statuses: [], applied: [], failed: [], discovered: 0 }, SEARCHED);
     expect(report).toContain("No npm-installed plugins found.");
@@ -112,6 +118,24 @@ describe("renderStaleToast", () => {
     expect(renderStaleToast(statuses)).toBe(
       "plugin-updates: 2 outdated: a (1.0.0 -> 1.0.1), b (2.0.0 -> 2.1.0)",
     );
+  });
+
+  test(`names the first ${TOAST_NAMES} outdated plugins and counts the rest`, () => {
+    const stale: PluginStatus[] = ["a", "b", "c", "d", "e"].map((name) => ({
+      name,
+      installed: "1.0.0",
+      latest: "1.1.0",
+      updateAvailable: true,
+    }));
+    expect(renderStaleToast(stale)).toBe(
+      "plugin-updates: 5 outdated: a (1.0.0 -> 1.1.0), b (1.0.0 -> 1.1.0), c (1.0.0 -> 1.1.0) and 2 more",
+    );
+    expect(renderStaleToast(stale.slice(0, TOAST_NAMES))).not.toContain("more");
+  });
+
+  test("calls a plugin to reinstall a broken install, not an ordinary update", () => {
+    const broken: PluginStatus[] = [{ name: "x", installed: null, latest: "2.0.0", updateAvailable: true }];
+    expect(renderStaleToast(broken)).toBe("plugin-updates: 1 outdated: x (broken install, reinstall 2.0.0)");
   });
 
   test("stays silent when everything is current", () => {
