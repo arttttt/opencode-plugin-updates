@@ -67,6 +67,8 @@ Restart OpenCode after adding it.
 | 1.3.4 – 1.x | `exports["./server"]` | supported; `engines.opencode` (`^1.2.0`) is checked on install |
 | 2.x | — | not supported yet: OpenCode 2 rejects the plugin |
 
+Below OpenCode 1.15.11 the plugin gets no `dispose` hook, so the startup check's timer is not cleared when OpenCode unloads it. That is harmless: the timer fires once.
+
 OpenCode 2 installs plugins as immutable cache generations and checks them for updates itself, so this plugin — written for OpenCode 1's cache, which never refreshes an installed `@latest` plugin — deliberately offers it no entry. OpenCode 2 support is planned separately.
 
 The cache layout the scanner expects is pinned by a test against OpenCode 1.18.32's installer (`packages/core/src/npm.ts`).
