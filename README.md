@@ -29,6 +29,7 @@ all fresh           →  silent
                    - a: 1.0.0 -> 1.0.1
                    - b: 2.0.0 =  up to date
                 no plugins found  →  the directories searched, and a pointer to `packagesDir`
+                all filtered out  →  how many were found, and that `packages` / `exclude` removed them
 ```
 
 ## Features

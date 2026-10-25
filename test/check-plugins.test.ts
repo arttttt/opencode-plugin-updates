@@ -50,7 +50,7 @@ describe("toStatus", () => {
 
 describe("checkPlugins", () => {
   test("reports a status for every considered plugin without touching workspaces", async () => {
-    const statuses = await checkPlugins({ cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST) }, {});
+    const { statuses } = await checkPlugins({ cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST) }, {});
 
     expect(statuses).toHaveLength(4);
     expect(statuses.filter((s) => s.updateAvailable)).toHaveLength(1);
@@ -59,10 +59,19 @@ describe("checkPlugins", () => {
   test("filters are applied before any registry traffic", async () => {
     const registry = fakeRegistry(LATEST);
 
-    const statuses = await checkPlugins({ cache: fakeCache(PLUGINS), registry }, { exclude: ["stale"] });
+    const { statuses } = await checkPlugins({ cache: fakeCache(PLUGINS), registry }, { exclude: ["stale"] });
 
     expect(registry.requested).not.toContain("stale");
     expect(statuses.map((s) => s.name)).not.toContain("stale");
+  });
+
+  // The report needs it to tell an empty cache from a filter that emptied it.
+  test("counts what the cache held before the filter", async () => {
+    const all = PLUGINS.map((plugin) => plugin.name);
+    const deps = { cache: fakeCache(PLUGINS), registry: fakeRegistry(LATEST) };
+
+    expect(await checkPlugins(deps, { exclude: all })).toEqual({ statuses: [], discovered: 4 });
+    expect(await checkPlugins({ ...deps, cache: fakeCache([]) }, {})).toEqual({ statuses: [], discovered: 0 });
   });
 });
 
@@ -78,6 +87,7 @@ describe("updatePlugins", () => {
     expect(updater.appliedTo).toEqual([{ name: "stale", version: "1.1.0" }]);
     expect(outcome.applied).toEqual([{ name: "stale", from: "1.0.0", to: "1.1.0" }]);
     expect(outcome.statuses).toHaveLength(4);
+    expect(outcome.discovered).toBe(4);
   });
 
   test("emits progress before each install, 1-based", async () => {

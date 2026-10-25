@@ -30,8 +30,18 @@ export interface AppliedUpdate {
   readonly to: string;
 }
 
-/** Everything one manual update run learned and did. */
-export interface UpdateOutcome {
+/** Everything one check learned. */
+export interface CheckOutcome {
+  /** One status per plugin that passed the packages/exclude filter. */
   readonly statuses: readonly PluginStatus[];
+  /**
+   * How many plugins the cache held before the filter: no statuses with
+   * plugins discovered means the filter removed them, not that none exist.
+   */
+  readonly discovered: number;
+}
+
+/** Everything one manual update run learned and did. */
+export interface UpdateOutcome extends CheckOutcome {
   readonly applied: readonly AppliedUpdate[];
 }

@@ -5,7 +5,7 @@
  * through a port.
  */
 
-import type { AppliedUpdate, InstalledPlugin, PluginStatus, UpdateOutcome } from "../domain/entities";
+import type { AppliedUpdate, CheckOutcome, InstalledPlugin, PluginStatus, UpdateOutcome } from "../domain/entities";
 import type { NpmRegistry, PackagesCache, WorkspaceUpdater } from "./ports";
 import type { PluginFilter } from "./policy";
 import { shouldConsider } from "./policy";
@@ -27,16 +27,18 @@ export function toStatus(plugin: InstalledPlugin, latest: string | null): Plugin
 
 /** Shared comparison pipeline for both use cases. */
 async function collect(deps: CheckDependencies, filter: PluginFilter) {
-  const installed = (await deps.cache.list()).filter((plugin) => shouldConsider(plugin.name, filter));
+  const discovered = await deps.cache.list();
+  const installed = discovered.filter((plugin) => shouldConsider(plugin.name, filter));
   const statuses = await Promise.all(
     installed.map(async (plugin) => toStatus(plugin, await deps.registry.latest(plugin.name))),
   );
-  return { installed, statuses };
+  return { installed, statuses, discovered: discovered.length };
 }
 
 /** Read-only: reports what is stale, changes nothing. */
-export async function checkPlugins(deps: CheckDependencies, filter: PluginFilter): Promise<PluginStatus[]> {
-  return (await collect(deps, filter)).statuses;
+export async function checkPlugins(deps: CheckDependencies, filter: PluginFilter): Promise<CheckOutcome> {
+  const { statuses, discovered } = await collect(deps, filter);
+  return { statuses, discovered };
 }
 
 /** Progress event emitted before each workspace install. */
@@ -52,7 +54,7 @@ export async function updatePlugins(
   filter: PluginFilter,
   onProgress?: (progress: UpdateProgress) => void,
 ): Promise<UpdateOutcome> {
-  const { installed, statuses } = await collect(deps, filter);
+  const { installed, statuses, discovered } = await collect(deps, filter);
   const stale = statuses.filter((status) => status.updateAvailable);
   const applied: AppliedUpdate[] = [];
   for (const [index, status] of stale.entries()) {
@@ -63,5 +65,5 @@ export async function updatePlugins(
       applied.push({ name: status.name, from: status.installed!, to: status.latest! });
     }
   }
-  return { statuses, applied };
+  return { statuses, applied, discovered };
 }

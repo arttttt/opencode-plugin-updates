@@ -100,7 +100,7 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
   // update; a failure here must never surface as a plugin load error.
   const startupTimer = setTimeout(() => {
     checkPlugins(deps, settings.filter)
-      .then((statuses) => {
+      .then(({ statuses }) => {
         const toast = renderStaleToast(statuses);
         if (toast !== null) return notifier.toast(toast);
       })
@@ -125,8 +125,8 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
     "command.execute.before": async (cmd) => {
       if (cmd.command === settings.checkCommandName) {
         await notifier.toast("plugin-updates: checking plugins…");
-        const statuses = await checkPlugins(deps, settings.filter);
-        await notifier.say(cmd.sessionID, renderCheckReport(statuses, settings.packagesDirs));
+        const outcome = await checkPlugins(deps, settings.filter);
+        await notifier.say(cmd.sessionID, renderCheckReport(outcome, settings.packagesDirs));
         throw new CommandHandled();
       }
       if (cmd.command === settings.updateCommandName) {

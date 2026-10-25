@@ -4,17 +4,22 @@
  * Pure formatting: no IO, so the exact wording is testable.
  */
 
-import type { PluginStatus, UpdateOutcome } from "../domain/entities";
+import type { CheckOutcome, PluginStatus, UpdateOutcome } from "../domain/entities";
 
 function versionText(version: string | null): string {
   return version ?? "unknown";
 }
 
 /**
- * Said instead of an empty table. Finding nothing usually means the cache is
- * not where it was looked for, not that every plugin is fresh.
+ * Said instead of an empty table, which reads as "all up to date". It names
+ * the knob that explains it: an empty cache usually sits elsewhere
+ * (packagesDir); a full one emptied by the filter, the filter.
  */
-function renderNothingFound(searched: readonly string[]): string {
+function renderNothingToCheck(discovered: number, searched: readonly string[]): string {
+  if (discovered > 0) {
+    const plugins = discovered === 1 ? "1 plugin" : `${discovered} plugins`;
+    return `Found ${plugins} in the cache, but none matches the \`packages\` / \`exclude\` options.`;
+  }
   return [
     "No npm-installed plugins found. Searched:",
     ...searched.map((dir) => `- ${dir}`),
@@ -24,8 +29,9 @@ function renderNothingFound(searched: readonly string[]): string {
 }
 
 /** Full table for the /plugins-check command: every plugin and its state. */
-export function renderCheckReport(statuses: readonly PluginStatus[], searched: readonly string[]): string {
-  if (statuses.length === 0) return renderNothingFound(searched);
+export function renderCheckReport(outcome: CheckOutcome, searched: readonly string[]): string {
+  const { statuses, discovered } = outcome;
+  if (statuses.length === 0) return renderNothingToCheck(discovered, searched);
   const lines = statuses.map((status) => {
     if (status.latest === null) {
       return `- ${status.name}: ${versionText(status.installed)} =  unknown (no registry data)`;
@@ -42,7 +48,7 @@ export function renderCheckReport(statuses: readonly PluginStatus[], searched: r
 
 /** Table plus the applied updates and a restart hint, for /plugins-update. */
 export function renderUpdateReport(outcome: UpdateOutcome, searched: readonly string[]): string {
-  const base = renderCheckReport(outcome.statuses, searched);
+  const base = renderCheckReport(outcome, searched);
   if (outcome.applied.length === 0) return `${base}\n\nNothing to update.`;
   const applied = outcome.applied.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
   return [base, "", "Updated:", ...applied, "", "Restart OpenCode to load the updated plugins."].join("\n");
