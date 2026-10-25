@@ -7,6 +7,9 @@
  * on their own. The startup check only notifies; updates happen
  * exclusively through the manual /plugins-update command.
  *
+ * This module is the composition root, not an entry: OpenCode loads the
+ * plugin through src/entry/legacy.ts or src/entry/server.ts.
+ *
  * @author arttttt
  * @license Apache-2.0
  */
@@ -20,6 +23,9 @@ import { createNpmRegistry } from "./infra/npm-registry";
 import { createNotifier, type UiClient } from "./infra/opencode-ui";
 import { createPackagesCache, resolveCacheCandidates } from "./infra/packages-cache";
 import { createWorkspaceUpdater } from "./infra/workspace-updater";
+
+/** The plugin's id for loaders that read one: its npm package name. */
+export const PLUGIN_ID = "opencode-plugin-updates";
 
 /** Delay before the first automatic check, letting OpenCode settle first. */
 const STARTUP_DELAY_MS = 15_000;
@@ -146,5 +152,3 @@ export const PluginUpdatesPlugin: Plugin = async (input, rawOptions) => {
     },
   };
 };
-
-export default PluginUpdatesPlugin;

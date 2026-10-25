@@ -16,7 +16,11 @@
     "npm",
     "cache"
   ],
-  "main": "src/plugin.ts",
+  "main": "src/entry/legacy.ts",
+  "exports": {
+    ".": "./src/entry/legacy.ts",
+    "./server": "./src/entry/server.ts"
+  },
   "files": [
     "src",
     "README.md",
