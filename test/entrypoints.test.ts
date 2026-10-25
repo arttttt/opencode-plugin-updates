@@ -57,6 +57,19 @@ describe("package manifest", () => {
     expect(`./${pkg.main}`).toBe(pkg.exports["."]);
   });
 
+  // OpenCode 1.3.4+ refuses an install outside this range (checkPluginCompatibility,
+  // plugin/shared.ts@v1.18.32): the commands need command.execute.before, from 1.2.0,
+  // and the plugin has no OpenCode 2 entry.
+  test.each([
+    ["1.1.4", false],
+    ["1.2.0", true],
+    ["1.18.32", true],
+    ["1.19.4", true],
+    ["2.0.0", false],
+  ])("engines.opencode on OpenCode %s: admitted %p", (version, admitted) => {
+    expect(Bun.semver.satisfies(version, pkg.engines.opencode)).toBe(admitted);
+  });
+
   test("the published files include every entry", () => {
     expect(pkg.files).toContain("src");
     for (const target of Object.values<string>(pkg.exports)) expect(target.startsWith("./src/")).toBe(true);
