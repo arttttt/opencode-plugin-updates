@@ -6,6 +6,7 @@
  */
 
 import type { CheckOutcome, InstalledPlugin, PluginStatus, UpdateOutcome, VersionChange } from "../domain/entities";
+import { isNewer } from "../domain/versions";
 import type { NpmRegistry, PackagesCache, WorkspaceUpdater } from "./ports";
 import type { PluginFilter } from "./policy";
 import { shouldConsider } from "./policy";
@@ -20,20 +21,10 @@ export interface UpdateDependencies extends CheckDependencies {
 }
 
 /**
- * Whether `latest` is newer than `installed`. Newer, not merely different: a
- * `latest` dist-tag moved back to an older release must not downgrade the
- * plugin. npm versions are always valid semver; anything else falls back to
- * inequality.
+ * Pure core of the comparison step, extracted for direct testing. An update
+ * needs `latest` to be newer, not merely different: a `latest` dist-tag moved
+ * back to an older release must not downgrade the plugin.
  */
-function isNewer(latest: string, installed: string): boolean {
-  try {
-    return Bun.semver.order(latest, installed) > 0;
-  } catch {
-    return latest !== installed;
-  }
-}
-
-/** Pure core of the comparison step, extracted for direct testing. */
 export function toStatus(plugin: InstalledPlugin, latest: string | null): PluginStatus {
   const updateAvailable = plugin.installed !== null && latest !== null && isNewer(latest, plugin.installed);
   return { name: plugin.name, installed: plugin.installed, latest, updateAvailable };

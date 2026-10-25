@@ -51,6 +51,14 @@ describe("createWorkspaceUpdater", () => {
     await rm(plugin.workspaceDir, { recursive: true, force: true });
   });
 
+  // npm has dist-tags like "v1.1.0"; the package they install says "1.1.0".
+  test("counts a v-prefixed target as installed when node_modules holds that version", async () => {
+    const plugin = await makeWorkspace("1.0.0");
+
+    expect(await createWorkspaceUpdater(installer("1.1.0")).apply(plugin, "v1.1.0")).toBe(true);
+    await rm(plugin.workspaceDir, { recursive: true, force: true });
+  });
+
   // OpenCode loads whatever node_modules holds, so that is what decides
   // whether the update happened — not the installer's exit code. On failure
   // the manifest gets its old pin back, so it agrees with node_modules.

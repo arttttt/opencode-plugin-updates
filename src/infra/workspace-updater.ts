@@ -10,6 +10,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import type { InstalledPlugin } from "../domain/entities";
+import { isSameVersion } from "../domain/versions";
 import type { WorkspaceUpdater } from "../app/ports";
 
 const LOCK_FILES = ["package-lock.json", "bun.lockb", "bun.lock"] as const;
@@ -87,8 +88,10 @@ export function createWorkspaceUpdater(runInstall: InstallRunner = createInstall
       // Counted only once node_modules holds the new version: an installer
       // that exits cleanly, or is killed by the timeout, can leave the old
       // copy or a torn one behind.
-      if ((await runInstall(plugin.workspaceDir)) && (await installedVersion(plugin.workspaceDir, plugin.name)) === version) {
-        return true;
+      if (await runInstall(plugin.workspaceDir)) {
+        const now = await installedVersion(plugin.workspaceDir, plugin.name);
+        // By semver: a "v1.2.3" dist-tag installs a package that says "1.2.3".
+        if (now !== null && isSameVersion(now, version)) return true;
       }
       // OpenCode keeps loading whatever node_modules holds; give the
       // manifest back its old pin so it says so too. Lock files are not

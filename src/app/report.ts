@@ -5,6 +5,7 @@
  */
 
 import type { CheckOutcome, PluginStatus, UpdateOutcome, VersionChange } from "../domain/entities";
+import { isSameVersion } from "../domain/versions";
 
 function versionText(version: string | null): string {
   return version ?? "unknown";
@@ -40,8 +41,8 @@ export function renderCheckReport(outcome: CheckOutcome, searched: readonly stri
       return `- ${status.name}: unknown =  unknown (local version unreadable)`;
     }
     if (status.updateAvailable) return `- ${status.name}: ${status.installed} -> ${status.latest}`;
-    // Known, different, yet no update: the registry's latest is older.
-    if (status.installed !== status.latest) {
+    // Known, a different version, yet no update: the registry's latest is older.
+    if (!isSameVersion(status.installed, status.latest)) {
       return `- ${status.name}: ${status.installed} =  newer than npm latest (${status.latest})`;
     }
     return `- ${status.name}: ${status.installed} =  up to date`;

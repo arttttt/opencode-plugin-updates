@@ -31,6 +31,12 @@ describe("renderCheckReport", () => {
     expect(report).toContain("- ahead: 1.2.0 =  newer than npm latest (1.1.0)");
   });
 
+  test("reads a v-prefixed latest naming the installed version as up to date", () => {
+    const tagged: PluginStatus = { name: "tagged", installed: "1.2.0", latest: "v1.2.0", updateAvailable: false };
+    const report = renderCheckReport({ statuses: [tagged], discovered: 1 }, SEARCHED);
+    expect(report).toContain("- tagged: 1.2.0 =  up to date");
+  });
+
   // An empty list read as "all up to date" when the cache was simply not
   // where it was looked for: say where, and how to point elsewhere.
   test("says where it looked when the cache held no plugins", () => {
