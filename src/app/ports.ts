@@ -12,9 +12,12 @@ export interface PackagesCache {
   list(): Promise<InstalledPlugin[]>;
 }
 
-/** Resolves the current "latest" dist-tag of a package from npm. */
+/**
+ * Resolves the current "latest" dist-tag of an installed plugin, from the
+ * registry its workspace installs from; null when unknown.
+ */
 export interface NpmRegistry {
-  latest(name: string): Promise<string | null>;
+  latest(plugin: InstalledPlugin): Promise<string | null>;
 }
 
 /** Applies a new version to an installed plugin workspace. */

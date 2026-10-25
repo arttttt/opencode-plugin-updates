@@ -12,7 +12,7 @@ function fakeRegistry(latest: Record<string, string | null>): NpmRegistry & { re
   const requested: string[] = [];
   return {
     requested,
-    latest: async (name) => {
+    latest: async ({ name }) => {
       requested.push(name);
       return latest[name] ?? null;
     },

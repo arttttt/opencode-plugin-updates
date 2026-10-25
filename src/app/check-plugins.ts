@@ -37,7 +37,7 @@ async function collect(deps: CheckDependencies, filter: PluginFilter) {
   const discovered = await deps.cache.list();
   const installed = discovered.filter((plugin) => shouldConsider(plugin.name, filter));
   const statuses = await Promise.all(
-    installed.map(async (plugin) => toStatus(plugin, await deps.registry.latest(plugin.name))),
+    installed.map(async (plugin) => toStatus(plugin, await deps.registry.latest(plugin))),
   );
   return { installed, statuses, discovered: discovered.length };
 }

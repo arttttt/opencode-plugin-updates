@@ -21,7 +21,8 @@ scan package cache roots:  $XDG_CACHE_HOME/opencode/packages
   ├─ per <name>@latest workspace: installed = node_modules/<name> version
   │    (plugins pinned to a version, <name>@1.2.3, are left alone)
   ↓
-npm registry: GET /-/package/<name>/dist-tags   (parallel, 5s timeout)
+npm registry: GET <registry>/-/package/<name>/dist-tags   (parallel, 5s timeout;
+              registry and credentials from your npm config, as OpenCode installs with)
   ↓
 latest newer than installed  →  toast: "plugin-updates: 2 outdated: a (1.0.0 -> 1.0.1), ..."
 nothing newer                →  silent
@@ -77,7 +78,7 @@ Below OpenCode 1.15.11 the plugin gets no `dispose` hook, so the startup check's
 
 OpenCode 2 installs plugins as immutable cache generations and checks them for updates itself, so this plugin — written for OpenCode 1's cache, which never refreshes an installed `@latest` plugin — deliberately offers it no entry. OpenCode 2 support is planned separately.
 
-Versions are looked up on the public registry, `registry.npmjs.org`, whatever your npm configuration says. A plugin that comes from a mirror or a private registry shows as `unknown`, or with that public registry's version.
+Versions are looked up where OpenCode installs the plugin from: the plugin's registry and credentials are read with npm's own config engine, exactly as OpenCode 1 loads it for that plugin — `npm_config_*` environment variables, your user `~/.npmrc` (or `$NPM_CONFIG_USERCONFIG`) and the global npmrc, including `@scope:registry`, `//host/:_authToken` / `_auth` and `${VAR}` references. Your project's `.npmrc` is not read: OpenCode doesn't read it for plugins either.
 
 The cache layout the scanner expects is pinned by a test against OpenCode 1.18.32's installer (`packages/core/src/npm.ts`).
 
