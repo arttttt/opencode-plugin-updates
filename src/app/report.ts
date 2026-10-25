@@ -4,7 +4,7 @@
  * Pure formatting: no IO, so the exact wording is testable.
  */
 
-import type { AppliedUpdate, CheckOutcome, PluginStatus, UpdateOutcome } from "../domain/entities";
+import type { CheckOutcome, PluginStatus, UpdateOutcome, VersionChange } from "../domain/entities";
 
 function versionText(version: string | null): string {
   return version ?? "unknown";
@@ -49,7 +49,7 @@ export function renderCheckReport(outcome: CheckOutcome, searched: readonly stri
   return ["Plugins:", ...lines].join("\n");
 }
 
-function updateLines(updates: readonly AppliedUpdate[]): string[] {
+function updateLines(updates: readonly VersionChange[]): string[] {
   return updates.map(({ name, from, to }) => `- ${name}: ${from} -> ${to}`);
 }
 

@@ -5,7 +5,7 @@
  * through a port.
  */
 
-import type { AppliedUpdate, CheckOutcome, InstalledPlugin, PluginStatus, UpdateOutcome } from "../domain/entities";
+import type { CheckOutcome, InstalledPlugin, PluginStatus, UpdateOutcome, VersionChange } from "../domain/entities";
 import type { NpmRegistry, PackagesCache, WorkspaceUpdater } from "./ports";
 import type { PluginFilter } from "./policy";
 import { shouldConsider } from "./policy";
@@ -70,8 +70,8 @@ export async function updatePlugins(
 ): Promise<UpdateOutcome> {
   const { installed, statuses, discovered } = await collect(deps, filter);
   const stale = statuses.filter((status) => status.updateAvailable);
-  const applied: AppliedUpdate[] = [];
-  const failed: AppliedUpdate[] = [];
+  const applied: VersionChange[] = [];
+  const failed: VersionChange[] = [];
   for (const [index, status] of stale.entries()) {
     const plugin = installed.find((candidate) => candidate.name === status.name);
     if (plugin === undefined) continue;

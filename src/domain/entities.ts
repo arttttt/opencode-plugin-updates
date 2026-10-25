@@ -23,8 +23,8 @@ export interface PluginStatus {
   readonly updateAvailable: boolean;
 }
 
-/** An update to one workspace: applied, or attempted and failed. */
-export interface AppliedUpdate {
+/** One plugin's move from one version to another, whether it was applied or failed. */
+export interface VersionChange {
   readonly name: string;
   readonly from: string;
   readonly to: string;
@@ -43,7 +43,7 @@ export interface CheckOutcome {
 
 /** Everything one manual update run learned and did. */
 export interface UpdateOutcome extends CheckOutcome {
-  readonly applied: readonly AppliedUpdate[];
+  readonly applied: readonly VersionChange[];
   /** Updates that were attempted but whose pin or install failed. */
-  readonly failed: readonly AppliedUpdate[];
+  readonly failed: readonly VersionChange[];
 }
